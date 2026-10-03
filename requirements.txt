@@ -1,0 +1,8 @@
+# 직접 쓰는 패키지만 고정한다. (Python 3.12, .venv 에 설치: uv pip install -r requirements.txt)
+fastapi==0.142.2
+uvicorn[standard]==0.54.0
+httpx==0.28.1
+pydantic-settings==2.15.0
+# 테스트
+pytest==9.1.1
+pytest-asyncio==1.4.0

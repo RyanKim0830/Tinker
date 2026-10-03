@@ -1,0 +1,10 @@
+# 모델 파일·llama.cpp 캐시 (수 GB)
+models/
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+bin/
+# 로컬 설정 (기본값은 코드에 있음)
+.env
