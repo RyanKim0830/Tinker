@@ -14,10 +14,10 @@ flowchart LR
     end
     llm[("llama-server<br/>Qwen3.5-4B 로컬 추론")]
     user -- "터미널에서 질문" --> tinker
-    tinker -- "HTTP, localhost:8080" --> llm
+    tinker -- "HTTP :8080 (WSL → Windows)" --> llm
 ```
 
-외부 클라우드 API는 쓰지 않는다. 모든 통신은 이 PC 안(localhost)에서 끝난다.
+외부 클라우드 API는 쓰지 않는다. 모든 통신은 이 PC 안에서 끝난다. 다만 Tinker(FastAPI·cli)는 WSL, llama-server 는 Windows 에서 돌아서 **WSL → Windows 경계를 넘는다** ([ADR-0015](adr/0015-llama-server-on-windows.md), 연결 방식은 미정: [O-21](open-items.md)).
 
 ## 2. Container — 실행되는 프로세스
 
@@ -26,17 +26,24 @@ flowchart LR
     user(["사용자"])
     cli["<b>cli.py</b><br/>터미널 챗 클라이언트<br/>(httpx)"]
     api["<b>FastAPI 서버</b> :8000<br/>POST /chat<br/>대화 이력 보관(메모리)"]
-    llama["<b>llama-server</b> :8080<br/>llama.cpp + Qwen3.5-4B Q5_K_M<br/>(WSL, GPU)"]
+    subgraph wsl["WSL"]
+        cli
+        api
+    end
+    subgraph win["Windows"]
+        llama["<b>llama-server</b> :8080<br/>llama.cpp + Qwen3.5-4B Q5_K_M<br/>(GPU)"]
+    end
     user --> cli
     cli -- "POST /chat<br/>{query} → {reply}" --> api
     api -- "POST /v1/chat/completions<br/>(OpenAI 호환 JSON)" --> llama
 ```
 
-| 프로세스 | 시작 방법 | 상태 |
-|---|---|---|
-| llama-server | `scripts/llama-server.sh` | 모델 로드 상태(VRAM) |
-| FastAPI 서버 | `python -m src.main` | **대화 이력**(메모리, 재시작하면 사라짐) |
-| cli | `python cli.py` | 없음 (이력은 서버 소유) |
+| 프로세스 | 실행 위치 | 시작 방법 | 상태 |
+|---|---|---|---|
+| llama-server | **Windows** (현재) | PowerShell 에서 `scripts\llama-server-moe.ps1` | 모델 로드 상태(VRAM) |
+| llama-server (대안) | WSL | `scripts/llama-server.sh` | 같음. 둘 다 8080 이라 하나만 띄운다 |
+| FastAPI 서버 | WSL | `python -m src.main` | **대화 이력**(메모리, 재시작하면 사라짐) |
+| cli | WSL | `python cli.py` | 없음 (이력은 서버 소유) |
 
 ## 3. Component — FastAPI 서버 내부 (레이어드 + 기능별 패키징)
 
@@ -122,9 +129,9 @@ Tinker/
 │   └── main.py        # FastAPI 앱 조립·실행
 ├── cli.py             # 터미널 클라이언트
 ├── tests/             # 레이어별 단위 테스트 + 앱 흐름 + integration(실서버)
-├── scripts/           # llama-server 실행 스크립트
-├── models/            # 모델 파일, llama.cpp 캐시 (git 제외)
-├── bin/               # Windows 용 llama.cpp 바이너리 (git 제외, 현재 예비용)
+├── scripts/           # llama-server 실행 스크립트: llama-server-moe.ps1(Windows, 현재) / llama-server.sh(WSL 대안)
+├── models/            # 모델 파일, llama.cpp 캐시 (git 제외, Windows·WSL 이 같이 읽음)
+├── bin/               # Windows 용 llama.cpp 바이너리 (git 제외, 현재 llama-server 실행에 사용)
 ├── docs/              # 이 문서들
 ├── .env               # 모듈별 설정 값 (git 제외, 기본값은 코드에 있음)
 └── requirements.txt

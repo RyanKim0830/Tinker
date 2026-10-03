@@ -18,6 +18,7 @@
 | [0011](0011-pydantic-settings.md) | 설정: 모듈별 pydantic BaseSettings | 확정 |
 | [0012](0012-llm-exceptions.md) | llama-server 연결 실패는 llm 모듈 전용 예외로 구분 | 확정 |
 | [0013](0013-no-judgment-in-code.md) | 코드에 판단을 넣지 않고, 지금 필요 없는 확장 포인트를 만들지 않는다 | 확정 |
-| [0014](0014-wsl-runtime-and-paths.md) | 실행 환경: llama-server 를 WSL 에서 실행, 경로는 /mnt/c, 모델은 models/ 폴더 | 확정 |
+| [0014](0014-wsl-runtime-and-paths.md) | 실행 환경: llama-server 를 WSL 에서 실행, 경로는 /mnt/c, 모델은 models/ 폴더 | 대체됨 (0015, 실행 위치 부분만) |
+| [0015](0015-llama-server-on-windows.md) | 실행 환경: llama-server 는 Windows, FastAPI 는 WSL (WSL 실행은 대안으로 보존) | 확정 |
 
 새 ADR 은 `template.md` 를 복사해서 쓴다.

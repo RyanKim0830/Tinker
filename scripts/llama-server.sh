@@ -7,7 +7,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LLAMA_DIR="${LLAMA_DIR:-$HOME/llama.cpp/llama-b11377}"   # 바이너리 + CUDA 런타임이 같이 있는 폴더
-MODEL="${MODEL:-$ROOT/models/Qwen3.5-4B-Q5_K_M.gguf}"
+MODEL="${MODEL:-$ROOT/models/Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf}"
 
 export LD_LIBRARY_PATH="$LLAMA_DIR:${LD_LIBRARY_PATH:-}"
 export LLAMA_CACHE="$ROOT/models"
@@ -23,4 +23,5 @@ exec "$LLAMA_DIR/llama-server" \
   -c 8192 \
   --cache-type-k q8_0 --cache-type-v q8_0 \
   --reasoning off \
-  -ngl 99
+  -ngl 99 \
+  --cpu-moe \

@@ -7,7 +7,7 @@
 
 | 단계 | 코드 | 단위 테스트(서버 불필요) | 실서버 확인 |
 |---|---|---|---|
-| 0. llama-server 실행 | `scripts/llama-server.sh` | — | **미통과** (드라이버 문제 → 업데이트 후 WSL 재시작 대기) |
+| 0. llama-server 실행 | Windows: `scripts/llama-server-moe.ps1` / WSL 대안: `scripts/llama-server.sh` | — | 통과 (WSL 2026-10-04, Windows 2026-10-04 기동·GPU 확인). **WSL→Windows 연결은 미해결 (O-21)** |
 | 1. 인프라 `llm/` | 완료 | 23개 통과 | 서버 끈 상태의 전용 예외: **통과**(진짜 닫힌 포트). 서버 켠 상태의 응답: 대기 |
 | 2. 비즈니스 `chat/service.py` | 완료 | 12개 통과 | 실제 모델 기억 확인: 대기 |
 | 3. 프레젠테이션 | 완료 | 22개 통과 (422·502·503 포함) | `/docs` 호출, 실모델 연동: 대기 |
@@ -40,6 +40,14 @@
 - `pytest -m integration` 5개 통과. 단위 65개 통과.
 - 실제 모델로 end-to-end: `/chat` 두 번째 답이 첫 대화("이름은 철수")를 기억함, 빈 query 는 422, `/docs` 200, `cli.py` 로 대화 후 `/exit` 정상 종료.
 - 다음 단계 후보: 스트리밍(O-08), 컨텍스트 한도 처리(O-06).
+
+### 실행 위치 변경: llama-server 를 Windows 로 (2026-10-04, [ADR-0015](adr/0015-llama-server-on-windows.md))
+- 사용자 지시: 현재는 llama-server 를 Windows 에서 연다. FastAPI 는 그대로 WSL. WSL 에서 열던 방식은 지우지 않고 대안으로 남긴다. 코드는 안 바꾸고 문서만 갱신했다. 뒤이어 사용자가 만든 빈 `scripts/llama-server-moe.ps1` 에 Windows 실행 명령을 넣었다(`.sh` 와 같은 옵션, `--cpu-moe`). (README, architecture, ADR-0015 추가/0014 대체 표시, open-items O-02·O-17·O-20·O-21).
+- 확인한 것: `bin\cuda12.4\llama-server.exe` 는 **b11377**(WSL 쪽과 같음)이고 `--reasoning`, `-ngl`, `--cache-type-k`, `--port`, `--host` 가 있다. 같은 옵션으로 Qwen3.5-4B 를 띄웠고(`.ps1` 은 `MODEL` 환경변수로 4B 지정해 기동·`/health` 200 확인, 35B 는 로드하지 않음) Windows 쪽 `/health` 200, 로딩 약 6초, VRAM 약 3.5GB (CUDA 12.4 빌드가 드라이버 616.92 에서 동작). 확인 후 서버는 껐다.
+- **확인한 문제**: 같은 시점에 WSL 에서 `localhost:8080` 연결 거부, `172.27.160.1:8080` 타임아웃 (WSL 기본 NAT 모드 + 서버 `127.0.0.1` 바인딩). → **FastAPI 와 Windows llama-server 의 실제 연동은 아직 확인 못 했다.** 해결 방식은 O-21 (사용자 결정 대기).
+- 확인 안 한 것: mirrored 네트워킹 적용 후 동작 (이 PC 설정을 바꾸지 않았다).
+- 확인 안 한 것(추가): 35B-A3B + `--cpu-moe` 실제 기동·속도·RAM 사용량.
+- 메모: `scripts/llama-server.sh` 의 기본 모델(`Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf`)은 커밋 안 된 작업 중 변경이다. 문서(README·ADR-0001)는 아직 Qwen3.5-4B 기준이며 이번에 건드리지 않았다.
 
 ## 1단계 — 인프라 (`src/llm/`)
 
@@ -83,4 +91,4 @@
 코드에 일부러 버그 17개를 넣어 테스트가 잡는지 확인: 17/17 검출 (자세한 내용 [testing.md](testing.md)).
 
 ## 문서화
-조사·채택 → [documentation-guide.md](documentation-guide.md). 구조도 [architecture.md](architecture.md), 결정 14개 [adr/](adr/), 임시결정·제외 항목 [open-items.md](open-items.md), 테스트 [testing.md](testing.md).
+조사·채택 → [documentation-guide.md](documentation-guide.md). 구조도 [architecture.md](architecture.md), 결정 15개 [adr/](adr/), 임시결정·제외 항목 [open-items.md](open-items.md), 테스트 [testing.md](testing.md).

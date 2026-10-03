@@ -6,7 +6,7 @@
 
 ```bash
 .venv/bin/python -m pytest                    # 단위/흐름 테스트 (서버 불필요, 약 1초)
-.venv/bin/python -m pytest -m integration     # 실제 llama-server 필요 (scripts/llama-server.sh 먼저 실행)
+.venv/bin/python -m pytest -m integration     # 실제 llama-server 필요 (먼저 실행: Windows exe 또는 WSL 의 scripts/llama-server.sh, README 참고)
 .venv/bin/python -m pytest -m "" -q           # 전부
 .venv/bin/python -m pytest tests/llm -q       # 한 레이어만
 ```

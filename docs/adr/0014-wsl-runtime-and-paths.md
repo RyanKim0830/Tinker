@@ -1,6 +1,6 @@
 # ADR-0014: 실행 환경: llama-server 를 WSL 에서 실행, 경로는 /mnt/c, 모델은 models/ 폴더
 
-- **Status**: Accepted — 사용자 확정 (작업 지시서의 '확정된 결정')
+- **Status**: Superseded by [ADR-0015](0015-llama-server-on-windows.md) — llama-server 를 WSL 에서 실행한다는 부분만 대체됨. 모델은 `models/` 폴더, 캐시 위치 결정은 여전히 유효하고 WSL 실행은 대안으로 남아 있다. (원래: 사용자 확정, 작업 지시서의 '확정된 결정')
 - **Date**: 2026-10-03
 
 ## Context

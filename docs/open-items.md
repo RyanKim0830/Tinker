@@ -16,7 +16,7 @@
 - **무엇을**: 최신 릴리스 **b11377** 의 Linux CUDA 12.8 빌드를 `~/llama.cpp/llama-b11377/`(WSL 홈, ext4)에 풀었다. 레포 밖이라 git 에 안 들어간다. 스크립트는 `LLAMA_DIR` 환경변수로 위치를 바꿀 수 있다.
 - **문제**: 이 PC 의 NVIDIA 드라이버가 546.80(CUDA 12.3)이라 12.8 로 빌드된 커널을 못 읽어 `CUDA error: device kernel image is invalid` 로 죽었다. `GGML_CUDA_PDL=0` 우회도 실패. → 사용자가 드라이버를 업데이트하기로 함. 상세는 [worklog.md](worklog.md).
 - **다른 선택지**: Windows CUDA 12.4 빌드를 WSL 에서 `.exe` 로 실행(예비로 `bin/cuda12.4/` 에 받아 둠), Vulkan 빌드(`bin/vulkan/`, 드라이버 무관·느릴 수 있음), 소스 빌드(CUDA toolkit 필요).
-- **다시 볼 때**: 드라이버 업데이트 후 정상 동작하면 `bin/` 은 지워도 된다 (3개 폴더 합쳐 수백 MB).
+- **다시 볼 때**: ~~드라이버 업데이트 후 정상 동작하면 `bin/` 은 지워도 된다~~ → **지우지 않는다.** 2026-10-04 llama-server 를 Windows 에서 실행하기로 해서 `bin/cuda12.4/` 가 실행 파일이 됐다 ([ADR-0015](adr/0015-llama-server-on-windows.md)). 이 항목의 WSL 설치(`~/llama.cpp/`)는 대안으로 유지. `bin/vulkan/` 은 계속 예비.
 - 추가: `libgomp1`(OpenMP)이 WSL 에 없어 sudo 없이 `.deb` 에서 라이브러리만 꺼내 같은 폴더에 넣었다. 시스템 패키지는 건드리지 않았다.
 
 ### O-03 `-ngl 99` (전 레이어 GPU 적재) — `임시결정` · 확인됨(VRAM 약 3.5GB)
@@ -68,13 +68,22 @@
 - 지시서 디렉토리 구조에는 `pytest.ini` 가 없지만 `pythonpath = .` 설정이 필요해서 추가했다.
 
 ### O-17 디렉토리 구조에 없던 것 추가 — `임시결정`
-- `scripts/llama-server.sh`(서버 실행), `bin/`(Windows 바이너리 예비, git 제외), `models/`(git 제외), `pytest.ini`, `README.md`, `.gitignore`. 지시서가 "임의로 바꾸지 말 것"을 확정된 *결정*에 한정했다고 보고 구조 파일만 더했다. 마음에 안 들면 알려 달라.
+- `scripts/llama-server-moe.ps1`(Windows 서버 실행, 현재), `scripts/llama-server.sh`(WSL 서버 실행, 대안), `bin/`(Windows 바이너리, 현재 llama-server 실행용, git 제외), `models/`(git 제외), `pytest.ini`, `README.md`, `.gitignore`. 지시서가 "임의로 바꾸지 말 것"을 확정된 *결정*에 한정했다고 보고 구조 파일만 더했다. 마음에 안 들면 알려 달라.
 
 ### O-19 thinking 이 안 섞이는지 — 확인됨
 - `--reasoning off` 옵션은 존재하지만 **효과는 실서버에서 확인했다(2026-10-04, 혼입 없음).** 통합 테스트 `test_reply_has_no_thinking_content` 가 확인한다.
 
 ### O-20 `/mnt/c` 에서 모델 로딩 속도 — 확인됨(약 21초, 이동 불필요)
 - WSL 에서 NTFS 의 3GB 파일을 읽는 첫 로딩이 느릴 수 있다. 실측 후 worklog 에 기록. 느리면 `~/models` 로 옮기는 것을 검토한다([ADR-0014](adr/0014-wsl-runtime-and-paths.md)).
+- Windows 에서 실행하면([ADR-0015](adr/0015-llama-server-on-windows.md)) Windows 가 직접 읽어서 해당 없음 (실측 약 6초, 파일 캐시 영향 가능).
+
+### O-21 WSL(FastAPI) → Windows(llama-server) 연결 방식 — `확인대기` · **사용자 결정 필요**
+- **문제(실측 2026-10-04)**: 이 PC 의 WSL 은 기본 NAT 모드(`.wslconfig` 없음, 게이트웨이 `172.27.160.1`)다. Windows 에서 `bin\cuda12.4\llama-server.exe` 를 띄우면 Windows 쪽 `localhost:8080/health` 는 200 인데, **WSL 에서 `localhost:8080` 은 연결 거부, `172.27.160.1:8080` 은 타임아웃**이었다. 서버가 기본 `127.0.0.1` 에만 바인딩하고 NAT 모드의 WSL 에는 Windows 의 localhost 가 안 보인다. 그래서 지금은 FastAPI → Windows llama-server 호출이 `LLMConnectionError` → 503 이다.
+- **선택지**
+  1. **mirrored 네트워킹 (권장 후보)**: `%UserProfile%\.wslconfig` 에 `[wsl2]` / `networkingMode=mirrored` 를 넣고 PowerShell 에서 `wsl --shutdown` 후 재시작. WSL 과 Windows 가 localhost 를 공유해서 `LLM_BASE_URL=http://localhost:8080`(기본값) 그대로 되고 서버는 `127.0.0.1` 바인딩 그대로라 외부에 안 열린다. 단점: WSL 전체의 네트워크 설정이 바뀐다. Windows 11 22H2 이상 필요(WSL 2.7.14 는 지원). **이 PC 에서는 아직 안 해 봤다.**
+  2. **NAT 유지 + 호스트 IP**: llama-server 를 `--host 0.0.0.0` 으로 띄우고 Windows 방화벽 인바운드 8080 허용, `LLM_BASE_URL=http://<게이트웨이 IP>:8080`. 단점: WSL 재시작마다 IP 가 바뀐다. 인증 없는 서버가 같은 네트워크에 열릴 수 있다(방화벽 규칙을 WSL 대역으로 좁혀야 함, O-09 와 같은 위험).
+  3. WSL 대안으로 복귀(`scripts/llama-server.sh`): 연결 문제가 없다.
+- **다시 볼 때**: 사용자가 방식을 고르면 새 ADR 로 확정하고 이 항목과 README 의 "미정" 표시를 지운다.
 
 ## B. 이번에 하지 않기로 한 것 (구현하지 않음, 기록만) — `제외`
 
@@ -91,4 +100,4 @@
 - 응답 전체를 기다리므로 긴 답변은 체감이 느리다. 나중에 `/chat` 을 SSE 로 바꿀 예정(ADR-0007). 바뀌는 곳: `LLMClient.chat`(스트림 반환), service, router, cli.
 
 ### O-09 영속화(DB) · 인증 · 미들웨어 · 헥사고날/Protocol · 툴 콜링
-- 모두 이번 범위 밖. 서버가 `127.0.0.1` 에만 바인딩(기본)되어 있어 인증이 없어도 같은 PC 밖에서는 접근되지 않는다. 호스트를 `0.0.0.0` 으로 바꾸면 **인증 없이 외부에 열리니** 그 전에 인증을 검토해야 한다.
+- 모두 이번 범위 밖. 서버가 `127.0.0.1` 에만 바인딩(기본)되어 있어 인증이 없어도 같은 PC 밖에서는 접근되지 않는다. 호스트를 `0.0.0.0` 으로 바꾸면 **인증 없이 외부에 열리니** 그 전에 인증을 검토해야 한다. llama-server 에도 같다: O-21 의 2번(`--host 0.0.0.0`)을 고르면 인증 없는 LLM 서버가 열린다.
