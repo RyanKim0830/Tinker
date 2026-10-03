@@ -19,6 +19,7 @@ TIMEOUT = 150.0
 
 async def ask(http: httpx.AsyncClient, base_url: str, query: str) -> str:
     """POST /chat 한 번. 연결 실패(httpx.TransportError)·HTTP 오류(httpx.HTTPStatusError)는 그대로 올린다."""
+    query = query.encode("utf-8", errors="replace").decode("utf-8")
     resp = await http.post(f"{base_url}/chat", json={"query": query}, timeout=TIMEOUT)
     resp.raise_for_status()
     return resp.json()["reply"]
