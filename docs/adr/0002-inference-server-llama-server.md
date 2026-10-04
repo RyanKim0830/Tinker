@@ -1,7 +1,9 @@
 # ADR-0002: 추론 엔진: llama.cpp llama-server + 실행 옵션
 
-- **Status**: Accepted — 사용자 확정 (작업 지시서의 '확정된 결정')
+- **Status**: Superseded by ADR-0018
 - **Date**: 2026-10-03
+
+컨텍스트 `-c 8192` 결정은 [ADR-0018](0018-context-131072.md) 로 대체되었다. llama-server·포트·KV 캐시·reasoning 옵션 결정은 유지한다.
 
 ## Context
 

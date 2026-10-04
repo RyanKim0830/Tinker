@@ -92,3 +92,14 @@
 
 ## 문서화
 조사·채택 → [documentation-guide.md](documentation-guide.md). 구조도 [architecture.md](architecture.md), 결정 15개 [adr/](adr/), 임시결정·제외 항목 [open-items.md](open-items.md), 테스트 [testing.md](testing.md).
+
+## 128K 컨텍스트 실측 기록 (2026-10-05)
+
+### 사용자 실측값
+
+측정일 2026-10-05, RTX 4050 Laptop 6GB, Qwen3.6-35B-A3B Q4_K_M, `--cpu-moe`, KV q8_0. 아래는 사용자가 직접 잰 수치이며 이번 작업에서 재측정하지 않았다.
+
+- `-c 393216`: 전용 GPU 메모리 5.7/6.0GB + 공유 GPU 메모리 1.9GB, 시스템 RAM 31.2/31.6GB(99%) → VRAM 이 넘쳐 공유 메모리로 흘러감. 사용 불가로 판단.
+- `-c 131072`: 전용 GPU 메모리 3.8/6.0GB, 공유 0.2GB, RAM 17.2/31.6GB(54%) → 정상.
+- 두 값의 차이로 역산하면 컨텍스트 토큰당 약 14KB (KV 캐시 + 컨텍스트에 비례하는 버퍼, 추정치).
+- **서버 로그의 KV 캐시 크기(MiB)는 아직 확인하지 않았다.** 실제 35B 생성 속도·WSL 실행 시 메모리 사용량·실서버 로깅 출력도 이번에는 확인하지 않았다.
