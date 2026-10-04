@@ -5,7 +5,7 @@
 
 | # | 결정 | 상태 |
 |---|---|---|
-| [0001](0001-local-llm-qwen3-5-4b.md) | 로컬 LLM 모델: Qwen3.5-4B (Unsloth GGUF Q5_K_M) | 확정 |
+| [0001](0001-local-llm-qwen3-5-4b.md) | 로컬 LLM 모델: Qwen3.5-4B (Unsloth GGUF Q5_K_M) | 대체됨 (0016) |
 | [0002](0002-inference-server-llama-server.md) | 추론 엔진: llama.cpp llama-server + 실행 옵션 | 확정 |
 | [0003](0003-sampling-params-in-client.md) | 샘플링 파라미터는 요청마다 llm/client.py 가 보낸다 | 구현 중 결정 |
 | [0004](0004-layered-architecture.md) | 레이어드 아키텍처 (프레젠테이션 → 비즈니스 → 인프라) | 확정 |
@@ -13,12 +13,18 @@
 | [0006](0006-httpx-async-client.md) | HTTP 클라이언트: httpx AsyncClient (OpenAI SDK 미사용) | 확정 |
 | [0007](0007-post-chat-endpoint.md) | 엔드포인트: POST /chat 하나, 스트리밍 없음 | 확정 |
 | [0008](0008-in-memory-history.md) | 대화 이력: 서버 메모리의 리스트 하나, session_id 없음 | 확정 |
-| [0009](0009-system-prompt.md) | 시스템 프롬프트 | 확정 |
+| [0009](0009-system-prompt.md) | 시스템 프롬프트 | 대체됨 (0018) |
 | [0010](0010-async-and-depends.md) | 라우터와 LLM 호출은 async, LLM 클라이언트는 Depends 로 주입 | 확정 |
 | [0011](0011-pydantic-settings.md) | 설정: 모듈별 pydantic BaseSettings | 확정 |
 | [0012](0012-llm-exceptions.md) | llama-server 연결 실패는 llm 모듈 전용 예외로 구분 | 확정 |
 | [0013](0013-no-judgment-in-code.md) | 코드에 판단을 넣지 않고, 지금 필요 없는 확장 포인트를 만들지 않는다 | 확정 |
 | [0014](0014-wsl-runtime-and-paths.md) | 실행 환경: llama-server 를 WSL 에서 실행, 경로는 /mnt/c, 모델은 models/ 폴더 | 대체됨 (0015, 실행 위치 부분만) |
 | [0015](0015-llama-server-on-windows.md) | 실행 환경: llama-server 는 Windows, FastAPI 는 WSL (WSL 실행은 대안으로 보존) | 확정 |
+
+| [0016](0016-model-qwen3-6-35b-a3b-128k.md) | 모델을 Qwen3.6-35B-A3B(Q4_K_M)로, 컨텍스트 128k (0001 대체) | 확정 |
+| [0017](0017-searxng-web-search.md) | 웹 검색에 SearXNG 채택 (로컬, Docker Desktop, 포트 8888) | 확정 |
+| [0018](0018-react-loop-rules.md) | ReAct(툴 콜링) 루프 규칙: 상한, 실패를 tool 결과로, 이력 전체 저장 (0009 대체) | 확정 (일부 해석은 임시: O-23~) |
+| [0019](0019-structure-message-search-tools.md) | 구조 변경: src/message.py, search 패키지, chat/tools.py | 확정 |
+| [0020](0020-wsl-windows-mirrored-networking.md) | WSL→Windows 연결: WSL mirrored 네트워킹 (O-21 해결) | 확정 |
 
 새 ADR 은 `template.md` 를 복사해서 쓴다.

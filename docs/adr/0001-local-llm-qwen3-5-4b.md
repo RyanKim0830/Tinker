@@ -1,6 +1,6 @@
 # ADR-0001: 로컬 LLM 모델: Qwen3.5-4B (Unsloth GGUF Q5_K_M)
 
-- **Status**: Accepted — 사용자 확정 (작업 지시서의 '확정된 결정')
+- **Status**: Superseded by [ADR-0016](0016-model-qwen3-6-35b-a3b-128k.md) — 사용자 확정 (작업 지시서의 '확정된 결정')
 - **Date**: 2026-10-03
 
 ## Context
