@@ -13,8 +13,8 @@ import httpx
 from src.config import AppSettings
 
 EXIT_COMMAND = "/exit"
-# 생성이 끝나야 응답이 오므로 서버의 LLM 대기 시간(기본 120초)보다 조금 길게 잡는다.
-TIMEOUT = 150.0
+# 한 질문에 서버가 LLM 을 최대 2번(각 120초), 그 사이에 검색(15초)을 하므로 그 합(약 255초)보다 넉넉히 잡는다.
+TIMEOUT = 450.0
 
 
 async def ask(http: httpx.AsyncClient, base_url: str, query: str) -> str:
