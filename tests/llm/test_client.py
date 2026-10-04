@@ -85,7 +85,7 @@ async def test_request_payload_converts_messages_in_order():
 
 
 async def test_request_payload_has_default_sampling_params():
-    """확정된 결정: Qwen3.5 non-thinking 일반 작업 권장값."""
+    """확정된 결정: Qwen3.6-35B-A3B non-thinking 권장값."""
     seen = {}
 
     def handler(req: httpx.Request) -> httpx.Response:
