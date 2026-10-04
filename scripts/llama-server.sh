@@ -12,16 +12,18 @@ MODEL="${MODEL:-$ROOT/models/Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf}"
 export LD_LIBRARY_PATH="$LLAMA_DIR:${LD_LIBRARY_PATH:-}"
 export LLAMA_CACHE="$ROOT/models"
 
-# -c 8192            : 컨텍스트 길이
+# -c 131072          : 컨텍스트 길이 (128k). 실측 수치는 scripts/llama-server-moe.ps1 주석 참고
 # -ctk/-ctv q8_0     : KV 캐시 양자화 (VRAM 절약)
-# --reasoning off    : Qwen3.5 는 기본 thinking ON 이라 서버에서 끈다
-# -ngl 99            : 전 레이어 GPU 적재 (VRAM 6GB, 4B Q5 약 3GB 로 충분)
+# --reasoning off    : Qwen 은 기본 thinking ON 이라 서버에서 끈다
+# -ngl 99            : 전 레이어 GPU 적재
+# --cpu-moe          : MoE 전문가(expert) 가중치는 CPU(RAM)에 둔다 (35B 모델이 VRAM 6GB 에 안 들어가서)
+# 툴 콜링: jinja 채팅 템플릿이 기본 켜져 있어(b11377 --help: default enabled) --jinja 를 따로 주지 않는다.
 # 샘플링 파라미터(temperature 등)는 서버가 아니라 요청마다 llm/client.py 가 보낸다. (값은 llm/config.py 한 곳)
 exec "$LLAMA_DIR/llama-server" \
   -m "$MODEL" \
   --port 8080 \
-  -c 8192 \
+  -c 131072 \
   --cache-type-k q8_0 --cache-type-v q8_0 \
   --reasoning off \
   -ngl 99 \
-  --cpu-moe \
+  --cpu-moe
