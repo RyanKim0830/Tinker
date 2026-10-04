@@ -21,4 +21,6 @@
 | [0014](0014-wsl-runtime-and-paths.md) | 실행 환경: llama-server 를 WSL 에서 실행, 경로는 /mnt/c, 모델은 models/ 폴더 | 대체됨 (0015, 실행 위치 부분만) |
 | [0015](0015-llama-server-on-windows.md) | 실행 환경: llama-server 는 Windows, FastAPI 는 WSL (WSL 실행은 대안으로 보존) | 확정 |
 
+| [0016](0016-logging.md) | 표준 logging 설정과 요청·응답·예외 기록 | 확정 |
+
 새 ADR 은 `template.md` 를 복사해서 쓴다.
