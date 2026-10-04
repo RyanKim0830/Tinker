@@ -3,6 +3,8 @@
 요청 검증(422), 정상 응답 형식, 서비스 예외 → HTTP 상태 코드 변환을 본다.
 서비스는 가짜로 바꾼다 (dependency_overrides). 서버를 띄우지 않고 ASGI 로 앱을 직접 호출한다.
 """
+import logging
+
 import httpx
 import pytest
 
@@ -107,6 +109,22 @@ async def test_unavailable_error_is_503(http, use_service):
     r = await http.post("/chat", json={"query": "안녕"})
     assert r.status_code == 503
     assert "detail" in r.json()
+
+
+async def test_unavailable_error_logs_traceback(http, use_service, caplog):
+    error = ChatUnavailableError("down")
+    use_service(FakeService(error=error))
+    with caplog.at_level(logging.ERROR, logger="src.chat.router"):
+        response = await http.post("/chat", json={"query": "안녕"})
+    assert response.status_code == 503
+    records = [r for r in caplog.records if r.name == "src.chat.router"]
+    assert len(records) == 1
+    record = records[0]
+    assert record.levelno == logging.ERROR
+    assert record.getMessage() == "chat 실패: LLM 서버 연결 불가"
+    assert record.exc_info is not None
+    assert record.exc_info[1] is error
+    assert record.exc_info[2] is not None
 
 
 async def test_failed_error_is_502(http, use_service):
