@@ -93,7 +93,15 @@
 ## 문서화
 조사·채택 → [documentation-guide.md](documentation-guide.md). 구조도 [architecture.md](architecture.md), 결정 15개 [adr/](adr/), 임시결정·제외 항목 [open-items.md](open-items.md), 테스트 [testing.md](testing.md).
 
-## 128K 컨텍스트 실측 기록 (2026-10-05)
+## 로깅·128K 컨텍스트·35B-A3B 문서 정리 (2026-10-05)
+
+### 만든 것
+
+- 표준 logging 도입: `APP_LOG_LEVEL` (기본 INFO), lifespan 시작에서 `basicConfig` 설정. router 의 503·502 처리 지점에서 traceback 을 한 번 기록한다. client 는 요청 메시지 개수(INFO), 전체 payload(DEBUG), 응답 HTTP 상태와 소요 시간(INFO)을 기록한다. 중간 레이어의 예외 로깅·미들웨어·응답 가공은 추가하지 않았다 ([ADR-0016](adr/0016-logging.md)).
+- 두 실행 스크립트의 컨텍스트를 `131072` 로 맞추고 옵션 주석을 현재 모델 기준으로 갱신했다 ([ADR-0018](adr/0018-context-131072.md)). O-06 에 한도 처리 자체는 여전히 없음을 적었다.
+- 현재 모델을 Qwen3.6-35B-A3B Q4_K_M GGUF + `--cpu-moe` 로 문서·다이어그램에 반영했다. ADR-0001 은 ADR-0017 로, ADR-0002 의 컨텍스트 결정은 ADR-0018 로 대체 표시했다.
+- [공식 모델 카드](https://huggingface.co/Qwen/Qwen3.6-35B-A3B#best-practices) 의 non-thinking 권장값을 확인했다: 기존에 전송하던 4개 값은 `temperature=0.7`, `top_p=0.8`, `top_k=20`, `presence_penalty=1.5` 이다. 작업 시작 시 미커밋 변경이던 temperature 0.3 은 지시에 따라 확인된 권장값 0.7 로 맞췄다. 카드에는 `min_p=0.0`, `repetition_penalty=1.0` 도 있지만 이번에는 기존 설정·payload 의 4개 항목만 유지했다. 실제 서버의 추가 두 항목 기본값은 확인하지 않았다.
+- 기존 사용자 변경인 `src/chat/service.py` 의 시스템 프롬프트는 그대로 보존했다. 최신 `origin/main` 과 로컬 `main` 이 동일함을 확인하고 `feat/logging-context-128k` 브랜치를 만들었다. 후속 지시에 따라 구현 순서와 의도별로 커밋한다. 각 커밋 대상 상태에서 integration 을 제외한 전체 pytest 를 확인한다. push·PR 은 하지 않는다.
 
 ### 사용자 실측값
 
@@ -103,3 +111,20 @@
 - `-c 131072`: 전용 GPU 메모리 3.8/6.0GB, 공유 0.2GB, RAM 17.2/31.6GB(54%) → 정상.
 - 두 값의 차이로 역산하면 컨텍스트 토큰당 약 14KB (KV 캐시 + 컨텍스트에 비례하는 버퍼, 추정치).
 - **서버 로그의 KV 캐시 크기(MiB)는 아직 확인하지 않았다.** 실제 35B 생성 속도·WSL 실행 시 메모리 사용량·실서버 로깅 출력도 이번에는 확인하지 않았다.
+
+### 확인 결과
+
+- `caplog` 테스트 두 개 추가: 연결 불가 503 의 router ERROR 레코드와 `exc_info`, 정상 LLM 호출의 요청·응답 INFO 레코드와 소요 시간.
+- `bash -n scripts/llama-server.sh` 통과. 실서버 integration 테스트는 이번 범위에서 제외한다.
+- 샌드박스에서는 기존 첫 ASGI 테스트가 비동기 스레드 대기에서 멈췄다. 승인 후 샌드박스 밖에서 테스트를 실행했다. 기존 시스템 프롬프트와 테스트 기대값의 불일치는 사용자가 추가로 허용한 `tests/chat/test_service.py` 의 기대 문자열 수정으로 해결했다. 새 프롬프트는 유지했다.
+- 최종 `.venv/bin/python -m pytest -q`: **67 passed, 5 deselected (integration), 1.40s**. 전체 테스트 통과.
+- `APP_LOG_LEVEL=DEBUG` 환경변수 반영과 lifespan 의 `basicConfig` 호출 인자도 별도로 확인했다.
+- `git diff --check`, 수정 문서의 상대 링크 확인 통과.
+
+### 커밋별 검증
+
+- 각 커밋 대상 index 를 별도 임시 디렉토리에 내보내 전체 pytest 를 실행한 뒤 커밋했다. 뒤 단계의 작업 트리 변경이 앞 단계 테스트에 섞이지 않게 확인했다.
+- 1~3번 커밋: 각각 65 passed, 5 deselected.
+- 4~11번 커밋: 각각 67 passed, 5 deselected.
+- 샘플링 값은 main 과 같은 권장값이므로 해당 커밋은 출처·설명 갱신을 뜻하는 `docs` 로 기록했다.
+- 기존 사용자 시스템 프롬프트 변경과 허용된 테스트 기대값 수정은 하나의 별도 `feat` 커밋으로 묶었다.
