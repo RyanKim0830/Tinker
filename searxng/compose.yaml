@@ -1,0 +1,17 @@
+# SearXNG 실행 설정 (웹 검색용 메타 검색엔진, 로컬 전용).
+# 실행:  docker compose -f searxng/compose.yaml up -d      종료: docker compose -f searxng/compose.yaml down
+# 확인:  curl "http://localhost:8888/search?q=test&format=json"
+# 엔진·형식 설정은 같은 폴더의 settings.yml 에 있다. (docs/adr/0017-searxng-web-search.md)
+services:
+  searxng:
+    image: searxng/searxng:latest
+    container_name: tinker-searxng
+    restart: unless-stopped
+    ports:
+      # 호스트의 127.0.0.1:8888 에만 연다 (인증이 없으므로 같은 PC 밖에는 열지 않는다)
+      - "127.0.0.1:8888:8080"
+    volumes:
+      - ./settings.yml:/etc/searxng/settings.yml:ro
+    environment:
+      # 쿠키·이미지 프록시 서명용 키. 로컬 전용이라 비밀 값이 아니지만, 기본값("ultrasecretkey")이면 SearXNG 가 시작을 거부한다.
+      SEARXNG_SECRET: "tinker-local-searxng-not-a-secret"

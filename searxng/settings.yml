@@ -1,0 +1,18 @@
+# SearXNG 설정. 기본 설정 위에 바꿀 것만 덮어쓴다.
+use_default_settings: true
+
+server:
+  # Tinker 서버가 호출하는 로컬 전용 인스턴스라 봇 차단(limiter)을 끈다.
+  limiter: false
+  # secret_key 는 compose.yaml 의 SEARXNG_SECRET 환경변수로 넣는다.
+
+search:
+  # format=json 요청을 허용한다. (기본은 html 만 허용해서 JSON 요청이 403 이 된다)
+  formats:
+    - html
+    - json
+
+engines:
+  # Google 은 자동화된 요청을 막아서 응답이 없는 경우가 많아 제외한다.
+  - name: google
+    disabled: true
