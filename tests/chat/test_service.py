@@ -13,7 +13,7 @@ from src.chat.service import (
     ChatUnavailableError,
     get_chat_service,
 )
-from src.llm.client import Message
+from src.message import Message
 from src.llm.exceptions import LLMConnectionError, LLMResponseError
 
 

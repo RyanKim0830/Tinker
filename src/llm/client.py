@@ -6,21 +6,11 @@
 - 외부 에러를 llm/exceptions.py 의 내부 예외로 변환
 비즈니스 판단(대화 이력 관리, 프롬프트 구성 등)은 하지 않는다.
 """
-from dataclasses import dataclass
-from typing import Literal
-
 import httpx
 
 from src.llm.config import LLMSettings
 from src.llm.exceptions import LLMConnectionError, LLMResponseError
-
-
-@dataclass(frozen=True)
-class Message:
-    """대화 한 줄. 서비스 레이어가 쓰는 내부 형식이며 HTTP 형식은 모른다."""
-
-    role: Literal["system", "user", "assistant"]
-    content: str
+from src.message import Message
 
 
 class LLMClient:

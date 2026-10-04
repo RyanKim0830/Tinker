@@ -5,8 +5,9 @@ HTTP·llama-server 통신 방식은 모른다. LLM 은 LLMClient 를 통해서�
 """
 from fastapi import Depends
 
-from src.llm.client import LLMClient, Message, get_llm_client
+from src.llm.client import LLMClient, get_llm_client
 from src.llm.exceptions import LLMConnectionError, LLMError
+from src.message import Message
 
 # 비즈니스 규칙: 비서의 역할과 말투
 SYSTEM_PROMPT = "너는 사용자의 개인 비서다. 한국어로 짧게 답한다."

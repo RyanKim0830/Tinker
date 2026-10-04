@@ -10,9 +10,10 @@ import httpx
 import pytest
 
 from src.llm import client as client_module
-from src.llm.client import LLMClient, Message
+from src.llm.client import LLMClient
 from src.llm.config import LLMSettings
 from src.llm.exceptions import LLMConnectionError, LLMError, LLMResponseError
+from src.message import Message
 
 MESSAGES = [
     Message("system", "너는 비서다."),

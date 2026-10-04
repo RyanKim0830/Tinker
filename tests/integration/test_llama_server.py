@@ -13,9 +13,10 @@ import pytest
 
 from src.chat import service
 from src.chat.service import ChatService
-from src.llm.client import LLMClient, Message
+from src.llm.client import LLMClient
 from src.llm.config import LLMSettings
 from src.main import app
+from src.message import Message
 
 pytestmark = pytest.mark.integration
 
