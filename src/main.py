@@ -2,6 +2,7 @@
 
 실행: python -m src.main   (또는 uvicorn src.main:app --port 8000)
 """
+import logging
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -14,6 +15,10 @@ from src.llm.client import close_llm_client
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logging.basicConfig(
+        level=AppSettings().log_level,
+        format="%(asctime)s %(levelname)-5s [%(name)s] %(message)s",
+    )
     yield
     # 서버 종료 시 LLM 클라이언트의 HTTP 연결을 닫는다.
     await close_llm_client()
