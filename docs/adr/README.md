@@ -5,7 +5,7 @@
 
 | # | 결정 | 상태 |
 |---|---|---|
-| [0001](0001-local-llm-qwen3-5-4b.md) | 로컬 LLM 모델: Qwen3.5-4B (Unsloth GGUF Q5_K_M) | 확정 |
+| [0001](0001-local-llm-qwen3-5-4b.md) | 로컬 LLM 모델: Qwen3.5-4B (Unsloth GGUF Q5_K_M) | ADR-0017 로 대체 |
 | [0002](0002-inference-server-llama-server.md) | 추론 엔진: llama.cpp llama-server + 실행 옵션 | 컨텍스트 결정은 ADR-0018 로 대체 |
 | [0003](0003-sampling-params-in-client.md) | 샘플링 파라미터는 요청마다 llm/client.py 가 보낸다 | 구현 중 결정 |
 | [0004](0004-layered-architecture.md) | 레이어드 아키텍처 (프레젠테이션 → 비즈니스 → 인프라) | 확정 |
@@ -20,9 +20,8 @@
 | [0013](0013-no-judgment-in-code.md) | 코드에 판단을 넣지 않고, 지금 필요 없는 확장 포인트를 만들지 않는다 | 확정 |
 | [0014](0014-wsl-runtime-and-paths.md) | 실행 환경: llama-server 를 WSL 에서 실행, 경로는 /mnt/c, 모델은 models/ 폴더 | 대체됨 (0015, 실행 위치 부분만) |
 | [0015](0015-llama-server-on-windows.md) | 실행 환경: llama-server 는 Windows, FastAPI 는 WSL (WSL 실행은 대안으로 보존) | 확정 |
-
 | [0016](0016-logging.md) | 표준 logging 설정과 요청·응답·예외 기록 | 확정 |
-
+| [0017](0017-model-qwen3-6-35b-a3b.md) | 로컬 LLM 모델: Qwen3.6-35B-A3B Q4_K_M + CPU MoE | 확정 |
 | [0018](0018-context-131072.md) | 실측에 따른 컨텍스트 131072 | 확정 |
 
 새 ADR 은 `template.md` 를 복사해서 쓴다.

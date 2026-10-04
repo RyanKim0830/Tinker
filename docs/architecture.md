@@ -12,7 +12,7 @@ flowchart LR
         direction TB
         t["로컬 PC에서 도는 챗봇.<br/>대화 이력을 들고 LLM에 질문을 중계한다"]
     end
-    llm[("llama-server<br/>Qwen3.5-4B 로컬 추론")]
+    llm[("llama-server<br/>Qwen3.6-35B-A3B 로컬 추론")]
     user -- "터미널에서 질문" --> tinker
     tinker -- "HTTP :8080 (WSL → Windows)" --> llm
 ```
@@ -31,7 +31,7 @@ flowchart LR
         api
     end
     subgraph win["Windows"]
-        llama["<b>llama-server</b> :8080<br/>llama.cpp + Qwen3.5-4B Q5_K_M<br/>(GPU)"]
+        llama["<b>llama-server</b> :8080<br/>llama.cpp + Qwen3.6-35B-A3B Q4_K_M<br/>(GPU + CPU MoE)"]
     end
     user --> cli
     cli -- "POST /chat<br/>{query} → {reply}" --> api
@@ -40,10 +40,12 @@ flowchart LR
 
 | 프로세스 | 실행 위치 | 시작 방법 | 상태 |
 |---|---|---|---|
-| llama-server | **Windows** (현재) | PowerShell 에서 `scripts\llama-server-moe.ps1` | 모델 로드 상태(VRAM) |
+| llama-server | **Windows** (현재) | PowerShell 에서 `scripts\llama-server-moe.ps1` | 모델 로드 상태(VRAM·시스템 RAM) |
 | llama-server (대안) | WSL | `scripts/llama-server.sh` | 같음. 둘 다 8080 이라 하나만 띄운다 |
 | FastAPI 서버 | WSL | `python -m src.main` | **대화 이력**(메모리, 재시작하면 사라짐) |
 | cli | WSL | `python cli.py` | 없음 (이력은 서버 소유) |
+
+모델은 Qwen3.6-35B-A3B Q4_K_M GGUF 로 고정한다. `--cpu-moe` 로 전문가 가중치는 시스템 RAM 에 둔다 ([ADR-0017](adr/0017-model-qwen3-6-35b-a3b.md)). Windows·WSL 스크립트 모두 컨텍스트 `131072`, KV 캐시 q8_0 을 쓴다 ([ADR-0018](adr/0018-context-131072.md)).
 
 ## 3. Component — FastAPI 서버 내부 (레이어드 + 기능별 패키징)
 

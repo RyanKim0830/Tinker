@@ -1,12 +1,12 @@
 # Tinker
 
 혼자 쓰는 개인 비서 AI. 지금은 **터미널에서 대화가 이어지는 로컬 LLM 챗봇**까지만 구현했다 (1단계).
-외부 클라우드 API 없이 이 PC 의 GPU(6GB)에서 Qwen3.5-4B 를 돌린다.
+외부 클라우드 API 없이 이 PC 에서 **Qwen3.6-35B-A3B (Q4_K_M GGUF)** 를 돌린다. `--cpu-moe` 로 전문가 가중치는 시스템 RAM 에 두고 나머지는 GPU(6GB)에 적재한다 ([ADR-0017](docs/adr/0017-model-qwen3-6-35b-a3b.md)).
 
 ```mermaid
 flowchart LR
     cli["cli.py"] -- "POST /chat :8000" --> api["FastAPI<br/>router → service → client"]
-    api -- "OpenAI 호환 API :8080" --> llama["llama-server (Windows)<br/>Qwen3.5-4B Q5_K_M"]
+    api -- "OpenAI 호환 API :8080" --> llama["llama-server (Windows)<br/>Qwen3.6-35B-A3B Q4_K_M"]
 ```
 
 FastAPI·cli 는 WSL, llama-server 는 Windows 에서 연다 ([ADR-0015](docs/adr/0015-llama-server-on-windows.md)). WSL 에서 llama-server 를 여는 방식도 남겨 두었다 (아래 "WSL 에서 실행").
@@ -23,7 +23,7 @@ cd C:\Tinker
 .\scripts\llama-server-moe.ps1
 ```
 
-옵션은 `scripts/llama-server.sh` 와 같다(둘을 같이 고칠 것). 모델은 환경변수 `MODEL` 로 바꾼다 (예: `$env:MODEL = "C:\Tinker\models\Qwen3.5-4B-Q5_K_M.gguf"`). 스크립트 기본 모델은 `Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf` + `--cpu-moe` 이다.
+옵션은 `scripts/llama-server.sh` 와 같다(둘을 같이 고칠 것). 모델은 환경변수 `MODEL` 로 바꾼다 (예: `$env:MODEL = "C:\Tinker\models\Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf"`). 스크립트 기본 모델은 `Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf` + `--cpu-moe` 이다. 컨텍스트는 `-c 131072` (128K), KV 캐시는 q8_0 이다 ([ADR-0018](docs/adr/0018-context-131072.md)).
 
 ```bash
 # 최초 1회 (WSL)
@@ -72,7 +72,7 @@ scripts/llama-server.sh
 | 문서 | 내용 |
 |---|---|
 | [architecture.md](docs/architecture.md) | 구조도(C4, Mermaid), 레이어 규칙, 요청 흐름 |
-| [adr/](docs/adr/README.md) | 설계 결정 기록 15개 (왜 이렇게 만들었나) |
+| [adr/](docs/adr/README.md) | 설계 결정 기록 18개 (왜 이렇게 만들었나) |
 | [open-items.md](docs/open-items.md) | 임시 결정과 아직 안 한 것 |
 | [testing.md](docs/testing.md) | 테스트 전략과 규칙 |
 | [worklog.md](docs/worklog.md) | 단계별 작업 기록과 현재 상태 |
