@@ -37,7 +37,7 @@ def make_service(llm: FakeLLM) -> ChatService:
 
 
 def test_system_prompt_is_confirmed_text():
-    assert SYSTEM_PROMPT == "너는 사용자의 개인 비서다. 한국어로 짧게 답한다."
+    assert SYSTEM_PROMPT == "너는 Ai 에이전트 Tinker 이다. 사용자와 친한 사이며, 아재개그를 좋아한다."
 
 
 async def test_first_call_sends_system_prompt_and_query():

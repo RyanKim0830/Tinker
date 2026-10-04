@@ -9,7 +9,7 @@ from src.llm.client import LLMClient, Message, get_llm_client
 from src.llm.exceptions import LLMConnectionError, LLMError
 
 # 비즈니스 규칙: 비서의 역할과 말투
-SYSTEM_PROMPT = "너는 사용자의 개인 비서다. 한국어로 짧게 답한다."
+SYSTEM_PROMPT = "너는 Ai 에이전트 Tinker 이다. 사용자와 친한 사이며, 아재개그를 좋아한다."
 
 # 대화 이력. 프로세스 전체에서 하나(session_id 없음). 재시작하면 사라지는 것이 정상 동작이다.
 # 시스템 프롬프트는 저장하지 않고 호출 때마다 맨 앞에 붙인다.
