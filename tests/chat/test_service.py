@@ -25,11 +25,11 @@ class FakeLLM:
         self.error = error
         self.calls: list[list[Message]] = []
 
-    async def chat(self, messages: list[Message]) -> str:
+    async def chat(self, messages: list[Message], tools: list[dict] | None = None) -> Message:
         self.calls.append(messages)
         if self.error:
             raise self.error
-        return self.replies.pop(0)
+        return Message("assistant", self.replies.pop(0))
 
 
 def make_service(llm: FakeLLM) -> ChatService:
@@ -96,9 +96,10 @@ async def test_remembers_via_a_llm_that_only_knows_what_it_is_sent():
     """'기억'을 흉내 내는 LLM: 보낸 messages 안에 이름이 있을 때만 이름을 안다. 서비스가 이력을 안 보내면 실패한다."""
 
     class StatelessLLM:
-        async def chat(self, messages):
+        async def chat(self, messages, tools=None):
             said = " ".join(m.content for m in messages if m.role == "user")
-            return "철수" if "철수" in said and messages[-1].content == "내 이름이 뭐지?" else "모르겠어요"
+            name = "철수" if "철수" in said and messages[-1].content == "내 이름이 뭐지?" else "모르겠어요"
+            return Message("assistant", name)
 
     svc = ChatService(StatelessLLM(), service._history)
     await svc.chat("내 이름은 철수야")

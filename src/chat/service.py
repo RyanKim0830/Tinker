@@ -35,7 +35,7 @@ class ChatService:
         messages = [Message("system", SYSTEM_PROMPT), *self._history, user]
         # llm 의 예외를 서비스 예외로 바꿔 올린다: 윗 레이어가 llm 모듈을 몰라도 되게 한다.
         try:
-            reply = await self._llm.chat(messages)
+            reply = (await self._llm.chat(messages)).content
         except LLMConnectionError as e:
             raise ChatUnavailableError("LLM 서버에 연결할 수 없다") from e
         except LLMError as e:

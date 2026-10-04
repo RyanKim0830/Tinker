@@ -6,6 +6,7 @@
 서버가 없으면 skip 이 아니라 '실패'시킨다: 안 돌았는데 통과한 것처럼 보이는 걸 막기 위해서다.
 LLM 답변은 매번 조금씩 달라지므로 정확한 문장이 아니라 '성질'(thinking 없음, 한글, 기억)만 검사한다.
 """
+import json
 import re
 
 import httpx
@@ -38,7 +39,7 @@ async def llm():
 
 async def test_client_gets_non_empty_reply(llm):
     reply = await llm.chat([Message("system", "짧게 답한다."), Message("user", "안녕")])
-    assert isinstance(reply, str) and reply.strip()
+    assert reply.role == "assistant" and reply.content.strip() and reply.tool_calls == ()
 
 
 async def test_reply_has_no_thinking_content(llm):
@@ -85,3 +86,44 @@ async def test_full_app_conversation_over_http(llm):
     assert r1.status_code == 200 and r2.status_code == 200
     assert "영희" in r2.json()["reply"]
     assert bad.status_code == 422
+
+
+# ---------- 툴 콜링 ----------
+
+WEB_SEARCH = {
+    "type": "function",
+    "function": {
+        "name": "web_search",
+        "description": "웹을 검색한다. 최신 정보나 모르는 사실이 필요할 때 쓴다.",
+        "parameters": {"type": "object", "properties": {"query": {"type": "string", "description": "검색어"}}, "required": ["query"]},
+    },
+}
+
+
+async def test_tools_request_returns_parsed_tool_calls(llm):
+    """tools 를 보내면 서버의 tool_calls 가 Message.tool_calls 로 파싱된다. (모델이 부르기로 하는 질문을 쓴다)"""
+    reply = await llm.chat(
+        [Message("system", "최신 정보가 필요하면 web_search 툴을 쓴다."), Message("user", "오늘 서울 날씨 검색해서 알려줘")],
+        [WEB_SEARCH],
+    )
+    assert len(reply.tool_calls) >= 1
+    call = reply.tool_calls[0]
+    assert call.id and call.name == "web_search"
+    assert json.loads(call.arguments)["query"].strip()
+
+
+async def test_tool_result_round_trip_gives_final_answer(llm):
+    """assistant(tool_calls) + tool 결과를 짝으로 다시 보내면 서버가 받아들이고 본문으로 답한다."""
+    first = await llm.chat(
+        [Message("system", "최신 정보가 필요하면 web_search 툴을 쓴다."), Message("user", "오늘 서울 날씨 검색해서 알려줘")],
+        [WEB_SEARCH],
+    )
+    assert first.tool_calls
+    history = [
+        Message("system", "검색 결과가 있으면 그것을 근거로 답한다. 한국어로 짧게."),
+        Message("user", "오늘 서울 날씨 검색해서 알려줘"),
+        first,
+        *[Message("tool", "[1] 서울 날씨 (http://w)\n서울 맑음, 기온 19도", tool_call_id=tc.id) for tc in first.tool_calls],
+    ]
+    final = await llm.chat(history)  # 상한 도달 때처럼 tools 없이
+    assert final.content.strip() and final.tool_calls == ()
