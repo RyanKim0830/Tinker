@@ -54,7 +54,7 @@
 - **다시 볼 때**: 설치·실행이 체감으로 느리면 venv 를 WSL 홈으로 옮긴다.
 
 ### O-14 LLM 클라이언트 싱글턴, 이력은 모듈 전역 — `임시결정`
-- `get_llm_client()` 가 프로세스당 `AsyncClient` 하나를 만들어 공유하고 lifespan 종료 때 닫는다. 이력 리스트는 `chat/service.py` 모듈 전역이며 요청마다 만드는 `ChatService` 가 이를 공유한다.
+- `get_llm_client()`(`llm/dependencies.py`)가 프로세스당 `AsyncClient` 하나를 만들어 공유하고 lifespan 종료 때 닫는다. 싱글턴과 종료는 각 패키지의 `dependencies.py` 에 있다([ADR-0024](adr/0024-dependency-providers-module.md)). 이력 리스트는 `chat/dependencies.py` 모듈 전역이며 요청마다 만드는 `ChatService` 가 이를 공유한다.
 - **왜**: "인메모리 리스트 하나"(ADR-0008)와 "클라이언트는 Depends 주입"(ADR-0010)을 동시에 만족하는 가장 짧은 구성.
 - **다른 선택지**: `ChatService` 자체를 싱글턴(주입한 클라이언트가 고정돼 테스트 교체가 번거롭다), `app.state` 에 보관.
 - **다시 볼 때**: 워커가 여러 개가 되거나 이력을 영속화할 때.

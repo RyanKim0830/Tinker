@@ -62,10 +62,12 @@ flowchart TB
         router["chat/router.py<br/>요청 검증 · 서비스 호출 · 예외→HTTP 상태"]
         schemas["chat/schemas.py<br/>ChatRequest / ChatResponse"]
         main["main.py / config.py<br/>앱 조립 · 로깅 · 앱 설정"]
+        deps["chat · llm · search 의 dependencies.py<br/>Depends 제공자 · 싱글턴 · 이력 보관 · 종료"]
     end
     subgraph biz["비즈니스 레이어"]
         service["chat/service.py<br/>이력 · 시스템 프롬프트 · <b>툴 콜링 루프</b>"]
         tools["chat/tools.py · chat/config.py<br/>툴 스키마 · 이름→실행 · 루프 상한"]
+        chatexc["chat/exceptions.py<br/>ChatUnavailableError · ChatFailedError"]
         ssvc["search/service.py<br/>상위 N개를 '[번호] 제목 (URL)\n내용' 으로"]
     end
     subgraph infra["인프라 레이어"]
@@ -79,12 +81,18 @@ flowchart TB
     ext2[("SearXNG")]
     router --> service
     router -.-> schemas
+    router -.-> deps
+    deps -.-> service
+    deps -.-> client
+    deps -.-> sclient
+    deps -.-> ssvc
     service --> tools
     service --> client
     tools --> ssvc
     ssvc --> sclient
     client --> cfg
     sclient --> cfg
+    service -.-> chatexc
     client -.-> exc
     sclient -.-> exc
     client -- "httpx" --> ext1
@@ -100,6 +108,7 @@ flowchart TB
 | 레이어 | 하는 일 | 하면 안 되는 일 | 알고 있는 것 |
 |---|---|---|---|
 | 프레젠테이션 `router` | 요청 검증·변환, 응답/예외를 외부 형식(HTTP)으로 포장 | 비즈니스 로직 | 서비스만 (llm·search 모듈 모름) |
+| 프레젠테이션 `*/dependencies` | FastAPI `Depends` 제공자: 객체를 만들어 연결, 클라이언트 싱글턴과 종료, 대화 이력 보관 | 비즈니스 판단 | 같은 패키지의 client·service, 다른 패키지의 `dependencies` |
 | 비즈니스 `chat/service` | 규칙 판단과 처리 (이력, 프롬프트, 툴 콜링 루프, 상한) | HTTP·외부 통신 방식 | `LLMClient.chat()`, `SearchService`, `Message` |
 | 비즈니스 `chat/tools` | 툴 정의, LLM 이 요청한 호출 실행, 실패를 결과 문자열로 | 루프 제어 | `search` 의 서비스·예외 |
 | 비즈니스 `search/service` | 상위 N개 선택·포맷 | HTTP | `SearchClient` |
@@ -114,9 +123,9 @@ LLM:  httpx 예외 ─(llm/client)→ LLMConnectionError / LLMResponseError ─(
 
 ### 패키징: 기능별 (Package by Feature)
 
-- `chat/` — 채팅 기능: router·schemas·service·tools·config.
-- `llm/` — LLM 호출 기능(client·config·exceptions).
-- `search/` — 웹 검색 기능(client·service·config·exceptions).
+- `chat/` — 채팅 기능: router·schemas·service·tools·config·exceptions·dependencies.
+- `llm/` — LLM 호출 기능(client·config·exceptions·dependencies).
+- `search/` — 웹 검색 기능(client·service·config·exceptions·dependencies).
 - 기능이 늘면 `src/<기능>/` 을 추가한다. 레이어별 폴더(`routers/`, `services/`)로 나누지 않는다.
 
 ## 4. 요청 흐름 — `POST /chat` (툴 콜링 루프)

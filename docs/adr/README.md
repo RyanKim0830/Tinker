@@ -27,5 +27,7 @@
 | [0020](0020-react-loop-rules.md) | ReAct(툴 콜링) 루프 규칙: 상한, 실패를 tool 결과로, 이력 전체 저장 (0009 대체) | 확정 (일부 해석은 임시: O-23~) |
 | [0021](0021-structure-message-search-tools.md) | 구조 변경: src/message.py, search 패키지, chat/tools.py | 확정 |
 | [0022](0022-wsl-windows-mirrored-networking.md) | WSL→Windows 연결: WSL mirrored 네트워킹 (O-21 해결) | 확정 |
+| [0023](0023-chat-exceptions-module.md) | chat 예외를 chat/exceptions.py 로 분리 (llm·search 와 같은 구조) | 확정 |
+| [0024](0024-dependency-providers-module.md) | Depends 제공자를 패키지별 dependencies.py 로 분리 (이력·싱글턴 전역 포함) | 확정 |
 
 새 ADR 은 `template.md` 를 복사해서 쓴다.

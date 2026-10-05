@@ -13,7 +13,7 @@ import re
 import httpx
 import pytest
 
-from src.chat import service
+from src.chat import dependencies
 from src.chat.config import ChatSettings
 from src.chat.service import ChatService
 from src.llm.client import LLMClient
@@ -91,12 +91,12 @@ async def test_second_answer_remembers_first_turn(llm, search):
 
 async def test_full_app_conversation_over_http(llm, search):
     """3단계 확인(자동화): 앱의 /chat 을 실제 llama-server 와 연결해 두 번 호출."""
-    from src.llm.client import get_llm_client
-    from src.search.service import get_search_service
+    from src.llm.dependencies import get_llm_client
+    from src.search.dependencies import get_search_service
 
     app.dependency_overrides[get_llm_client] = lambda: llm
     app.dependency_overrides[get_search_service] = lambda: search
-    service._history.clear()
+    dependencies._history.clear()
     try:
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c:
             r1 = await c.post("/chat", json={"query": "내 이름은 영희야."})
@@ -104,7 +104,7 @@ async def test_full_app_conversation_over_http(llm, search):
             bad = await c.post("/chat", json={"query": 123})
     finally:
         app.dependency_overrides.clear()
-        service._history.clear()
+        dependencies._history.clear()
     assert r1.status_code == 200 and r2.status_code == 200
     assert "영희" in r2.json()["reply"]
     assert bad.status_code == 422

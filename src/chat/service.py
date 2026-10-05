@@ -9,10 +9,9 @@ import logging
 from collections.abc import Callable
 from datetime import date
 
-from fastapi import Depends
-
 from src.chat import tools
 from src.chat.config import ChatSettings
+from src.chat.exceptions import ChatFailedError, ChatUnavailableError
 from src.llm import client as llm_client
 from src.llm import exceptions as llm_exceptions
 from src.message import Message
@@ -29,20 +28,6 @@ SEARCH_PROMPT = "검색 결과가 있으면 그것을 근거로 답한다."
 def build_system_prompt(today: date) -> str:
     """시스템 프롬프트 = 기존 문구 + 오늘 날짜 + 검색 결과 사용 규칙. LLM 은 오늘 날짜를 모르므로 매번 넣는다."""
     return f"{BASE_PROMPT} 오늘 날짜는 {today.isoformat()}이다. {SEARCH_PROMPT}"
-
-
-# 대화 이력. 프로세스 전체에서 하나(session_id 없음). 재시작하면 사라지는 것이 정상 동작이다.
-# 한 턴 전체(user, assistant(tool_calls), tool 결과, 최종 assistant)를 저장한다.
-# 시스템 프롬프트는 저장하지 않고 호출 때마다 맨 앞에 붙인다.
-_history: list[Message] = []
-
-
-class ChatUnavailableError(Exception):
-    """LLM 서버에 연결할 수 없어 답을 못 만든다. (프레젠테이션 레이어가 '서비스 불가'로 포장)"""
-
-
-class ChatFailedError(Exception):
-    """LLM 서버가 이상한 응답을 줘서 답을 못 만든다. (프레젠테이션 레이어가 '상위 서버 오류'로 포장)"""
 
 
 class ChatService:
@@ -99,11 +84,3 @@ class ChatService:
             raise ChatUnavailableError("LLM 서버에 연결할 수 없다") from e
         except llm_exceptions.LLMError as e:
             raise ChatFailedError("LLM 서버 응답이 정상이 아니다") from e
-
-
-def get_chat_service(
-    llm: llm_client.LLMClient = Depends(llm_client.get_llm_client),
-    search: search_service.SearchService = Depends(search_service.get_search_service),
-) -> ChatService:
-    """FastAPI Depends 용. LLM 클라이언트·검색 서비스는 주입받고, 이력은 모듈 전역 하나를 공유한다."""
-    return ChatService(llm, search, _history, ChatSettings())

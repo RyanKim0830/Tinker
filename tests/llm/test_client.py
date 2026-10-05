@@ -313,14 +313,3 @@ async def test_real_closed_port_raises_connection_error():
         c = LLMClient(http, LLMSettings(_env_file=None, base_url=f"http://127.0.0.1:{port}", timeout=5))
         with pytest.raises(LLMConnectionError):
             await c.chat(MESSAGES)
-
-
-# ---------- Depends 용 제공자 ----------
-
-async def test_get_llm_client_is_shared_and_close_resets():
-    await client_module.close_llm_client()
-    first = client_module.get_llm_client()
-    assert client_module.get_llm_client() is first  # 프로세스 안에서 하나를 공유
-    await client_module.close_llm_client()
-    assert client_module.get_llm_client() is not first  # 닫으면 다음 호출 때 새로 만든다
-    await client_module.close_llm_client()

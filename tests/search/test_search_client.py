@@ -9,7 +9,6 @@ import socket
 import httpx
 import pytest
 
-from src.search import client as client_module
 from src.search.client import SearchClient, SearchResult
 from src.search.config import SearchSettings
 from src.search.exceptions import SearchConnectionError, SearchError, SearchResponseError
@@ -158,14 +157,3 @@ def test_settings_read_search_prefixed_env(monkeypatch):
     monkeypatch.setenv("SEARCH_RESULT_COUNT", "2")
     s = SearchSettings(_env_file=None)
     assert (s.searxng_url, s.timeout, s.result_count) == ("http://other:1", 3.0, 2)
-
-
-# ---------- Depends 용 제공자 ----------
-
-async def test_get_search_client_is_shared_and_close_resets():
-    await client_module.close_search_client()
-    first = client_module.get_search_client()
-    assert client_module.get_search_client() is first  # 프로세스 안에서 하나를 공유
-    await client_module.close_search_client()
-    assert client_module.get_search_client() is not first  # 닫으면 다음 호출 때 새로 만든다
-    await client_module.close_search_client()
