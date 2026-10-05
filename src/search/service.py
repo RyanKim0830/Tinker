@@ -6,10 +6,7 @@ HTTP·SearXNG 통신 방식은 모른다. 실패는 SearchError 계열 예외로
 """
 import logging
 
-from fastapi import Depends
-
-from src.search.client import SearchClient, SearchResult, get_search_client
-from src.search.config import SearchSettings
+from src.search.client import SearchClient, SearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +32,3 @@ class SearchService:
         if not used:
             return NO_RESULTS
         return format_results(used)
-
-
-def get_search_service(client: SearchClient = Depends(get_search_client)) -> SearchService:
-    """FastAPI Depends 용. 클라이언트는 주입받고, 결과 개수는 설정에서 읽는다."""
-    return SearchService(client, SearchSettings().result_count)

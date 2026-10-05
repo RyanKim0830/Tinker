@@ -10,10 +10,12 @@ import pytest
 
 from src.chat import tools
 from src.chat.service import build_system_prompt
-from src.llm.client import LLMClient, get_llm_client
+from src.llm.client import LLMClient
+from src.llm.dependencies import get_llm_client
 from src.llm.config import LLMSettings
 from src.main import app
-from src.search.client import SearchClient, get_search_client
+from src.search.client import SearchClient
+from src.search.dependencies import get_search_client
 from src.search.config import SearchSettings
 from src.search.service import NO_RESULTS
 

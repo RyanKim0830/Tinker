@@ -7,9 +7,10 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from src.chat.dependencies import get_chat_service
 from src.chat.exceptions import ChatFailedError, ChatUnavailableError
 from src.chat.schemas import ChatRequest, ChatResponse
-from src.chat.service import ChatService, get_chat_service
+from src.chat.service import ChatService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

@@ -9,7 +9,7 @@ from datetime import date
 import pytest
 from pydantic import ValidationError
 
-from src.chat import service, tools
+from src.chat import dependencies, tools
 from src.chat.config import ChatSettings
 from src.chat.exceptions import ChatFailedError, ChatUnavailableError
 from src.chat.service import (
@@ -17,7 +17,6 @@ from src.chat.service import (
     SEARCH_PROMPT,
     ChatService,
     build_system_prompt,
-    get_chat_service,
 )
 from src.llm.exceptions import LLMConnectionError, LLMResponseError
 from src.message import Message, ToolCall
@@ -67,7 +66,7 @@ class FakeSearch:
 
 def make_service(llm, search: FakeSearch | None = None, max_rounds: int = 2) -> ChatService:
     return ChatService(
-        llm, search or FakeSearch(), service._history, ChatSettings(_env_file=None, max_tool_rounds=max_rounds),
+        llm, search or FakeSearch(), dependencies._history, ChatSettings(_env_file=None, max_tool_rounds=max_rounds),
         today=lambda: TODAY,
     )
 
@@ -103,7 +102,7 @@ def test_system_prompt_is_base_plus_today_plus_search_rule():
 
 async def test_system_prompt_uses_injected_date():
     llm = FakeLLM("a")
-    svc = ChatService(llm, FakeSearch(), service._history, ChatSettings(_env_file=None), today=lambda: date(2030, 1, 2))
+    svc = ChatService(llm, FakeSearch(), dependencies._history, ChatSettings(_env_file=None), today=lambda: date(2030, 1, 2))
     await svc.chat("q")
     assert "2030-01-02" in llm.calls[0][0].content
 
@@ -147,7 +146,7 @@ async def test_history_keeps_growing_in_order():
     svc = make_service(llm)
     for q in ("q1", "q2", "q3"):
         await svc.chat(q)
-    assert service._history == [
+    assert dependencies._history == [
         Message("user", "q1"), Message("assistant", "a1"),
         Message("user", "q2"), Message("assistant", "a2"),
         Message("user", "q3"), Message("assistant", "a3"),
@@ -159,7 +158,7 @@ async def test_system_prompt_is_not_stored_and_not_duplicated():
     svc = make_service(llm)
     await svc.chat("q1")
     await svc.chat("q2")
-    assert all(m.role != "system" for m in service._history)
+    assert all(m.role != "system" for m in dependencies._history)
     assert sum(m.role == "system" for m in llm.calls[1]) == 1
     assert llm.calls[1][0].role == "system"  # 맨 앞
 
@@ -209,13 +208,13 @@ async def test_search_flow_runs_tool_and_answers_from_result():
 async def test_history_stores_whole_turn_in_order():
     llm = FakeLLM(asks(tool_call("c1", "서울 날씨"), content="검색해 볼게요."), "맑아요.")
     await make_service(llm).chat("서울 날씨?")
-    assert service._history == [
+    assert dependencies._history == [
         Message("user", "서울 날씨?"),
         asks(tool_call("c1", "서울 날씨"), content="검색해 볼게요."),
         Message("tool", SEARCH_TEXT, tool_call_id="c1"),
         Message("assistant", "맑아요."),
     ]
-    assert_tool_calls_are_paired(service._history)
+    assert_tool_calls_are_paired(dependencies._history)
 
 
 async def test_follow_up_question_sees_search_text_from_history():
@@ -241,7 +240,7 @@ async def test_multiple_tool_calls_run_in_order_and_count_as_one_round():
     assert len(llm.calls) == 2  # 호출 개수가 아니라 LLM 왕복으로 센다
     assert [(m.role, m.tool_call_id) for m in llm.calls[1][-2:]] == [("tool", "c1"), ("tool", "c2")]
     assert reply == "둘 다 맑아요."
-    assert_tool_calls_are_paired(service._history)
+    assert_tool_calls_are_paired(dependencies._history)
 
 
 # ---------- 검색 실패는 예외가 아니라 tool 결과 문자열 ----------
@@ -254,7 +253,7 @@ async def test_search_failure_is_returned_to_llm_as_tool_result():
     assert reply == "지금은 검색이 안 돼서 확인하지 못했어요."
     tool_msg = llm.calls[1][-1]
     assert tool_msg.role == "tool" and tool_msg.tool_call_id == "c1" and tool_msg.content.startswith("검색 실패")
-    assert_tool_calls_are_paired(service._history)
+    assert_tool_calls_are_paired(dependencies._history)
 
 
 async def test_search_with_no_results_is_returned_as_tool_result():
@@ -285,7 +284,7 @@ async def test_invalid_tool_call_returns_error_as_tool_result(bad, expected):
     tool_msg = llm.calls[1][-1]
     assert (tool_msg.role, tool_msg.tool_call_id) == ("tool", "c1")
     assert expected in tool_msg.content
-    assert_tool_calls_are_paired(service._history)
+    assert_tool_calls_are_paired(dependencies._history)
 
 
 async def test_invalid_tool_call_counts_as_a_round():
@@ -303,7 +302,7 @@ async def test_llm_can_retry_after_invalid_call_when_rounds_remain():
     assert reply == "맑아요."
     assert search.queries == ["서울 날씨"]
     assert llm.tools == [tools.TOOLS, tools.TOOLS, None]
-    assert_tool_calls_are_paired(service._history)
+    assert_tool_calls_are_paired(dependencies._history)
 
 
 # ---------- 상한: 마지막 왕복은 tools 없이 ----------
@@ -346,8 +345,8 @@ async def test_tool_calls_in_last_round_are_ignored_and_not_stored():
 
     assert reply == "그냥 답"
     assert search.queries == ["서울 날씨"]  # c1 만 실행
-    assert service._history[-1] == Message("assistant", "그냥 답")
-    assert_tool_calls_are_paired(service._history)
+    assert dependencies._history[-1] == Message("assistant", "그냥 답")
+    assert_tool_calls_are_paired(dependencies._history)
 
 
 # ---------- LLM 실패: 이력에 저장하지 않는다 ----------
@@ -373,7 +372,7 @@ async def test_failed_turn_is_not_saved_to_history():
     llm.error = LLMConnectionError("down")
     with pytest.raises(ChatUnavailableError):
         await svc.chat("실패할 질문")
-    assert service._history == []
+    assert dependencies._history == []
 
     llm.error = None  # 서버가 살아났다
     await svc.chat("다음 질문")
@@ -385,26 +384,26 @@ async def test_failed_turn_is_not_saved_to_history():
 )
 async def test_llm_failure_after_tool_round_leaves_history_untouched(error, expected):
     """검색까지 마치고 두 번째 왕복에서 LLM 이 실패하면, 앞의 user·assistant(tool_calls)·tool 도 저장하지 않는다."""
-    service._history.extend([Message("user", "이전"), Message("assistant", "이전 답")])
-    before = list(service._history)
+    dependencies._history.extend([Message("user", "이전"), Message("assistant", "이전 답")])
+    before = list(dependencies._history)
     llm = FakeLLM(asks(tool_call()), error)  # 첫 왕복은 정상(검색까지 실행), 두 번째 왕복에서 실패
     with pytest.raises(expected):
         await make_service(llm).chat("서울 날씨?")
-    assert service._history == before
+    assert dependencies._history == before
 
 
 async def test_unexpected_exception_is_not_swallowed():
     """llm 예외가 아닌 에러(버그 등)는 서비스 예외로 위장하지 않고 그대로 올라온다."""
     with pytest.raises(RuntimeError):
         await make_service(FakeLLM(error=RuntimeError("bug"))).chat("안녕")
-    assert service._history == []
+    assert dependencies._history == []
 
 
 async def test_unexpected_exception_in_tool_leaves_history_untouched():
     llm = FakeLLM(asks(tool_call()), "답")
     with pytest.raises(RuntimeError):
         await make_service(llm, FakeSearch(error=RuntimeError("bug"))).chat("q")
-    assert service._history == []
+    assert dependencies._history == []
 
 
 # ---------- 빈 답 · 누출 · 로그 ----------
@@ -415,7 +414,7 @@ async def test_empty_final_content_returns_empty_string_and_logs(caplog):
         reply = await make_service(llm).chat("q")
     assert reply == ""
     assert "비어 있다" in caplog.text
-    assert service._history[-1] == Message("assistant", "")  # 있는 그대로 저장
+    assert dependencies._history[-1] == Message("assistant", "")  # 있는 그대로 저장
 
 
 async def test_empty_final_content_after_search_returns_empty_string():
@@ -442,15 +441,7 @@ async def test_each_round_logs_raw_content_and_tool_calls(caplog):
     assert "round 2/2" in text and "최종 답" in text
 
 
-# ---------- 의존성 제공 ----------
-
-async def test_history_is_shared_across_service_instances():
-    """get_chat_service 는 요청마다 새 서비스를 만들지만 이력은 하나를 공유한다 (session_id 없음)."""
-    llm = FakeLLM("a1", "a2")
-    await get_chat_service(llm, FakeSearch()).chat("q1")
-    await get_chat_service(llm, FakeSearch()).chat("q2")
-    assert llm.calls[1][1:3] == [Message("user", "q1"), Message("assistant", "a1")]
-
+# ---------- 설정 ----------
 
 def test_settings_validation_rejects_less_than_one_round():
     with pytest.raises(ValidationError):

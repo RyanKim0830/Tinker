@@ -2,19 +2,19 @@
 import logging
 
 from src import main
-from src.llm import client as llm_client
-from src.search import client as search_client
+from src.llm import dependencies as llm_dependencies
+from src.search import dependencies as search_dependencies
 
 
 async def test_lifespan_closes_llm_and_search_clients(monkeypatch):
-    llm_client.get_llm_client()
-    search_client.get_search_client()
-    assert llm_client._http is not None and search_client._http is not None
+    llm_dependencies.get_llm_client()
+    search_dependencies.get_search_client()
+    assert llm_dependencies._http is not None and search_dependencies._http is not None
 
     async with main.lifespan(main.app):
         pass
 
-    assert llm_client._http is None and search_client._http is None  # 닫고 비웠다
+    assert llm_dependencies._http is None and search_dependencies._http is None  # 닫고 비웠다
 
 
 async def test_lifespan_configures_logging_from_settings(monkeypatch):

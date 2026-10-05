@@ -59,24 +59,3 @@ class SearchClient:
         # 일부 엔진이 응답하지 않아도 결과가 있으면 정상으로 본다. 어떤 엔진이 빠졌는지만 남긴다.
         logger.info("SearXNG 응답 없는 엔진: %s", unresponsive)
         return results
-
-
-# --- FastAPI Depends 용 제공자 ---
-# 프로세스 전체에서 AsyncClient 하나를 공유한다. 첫 호출 때 만들고, 서버 종료 시 close_search_client() 로 닫는다.
-_client: SearchClient | None = None
-_http: httpx.AsyncClient | None = None
-
-
-def get_search_client() -> SearchClient:
-    global _client, _http
-    if _client is None:
-        _http = httpx.AsyncClient()
-        _client = SearchClient(_http, SearchSettings())
-    return _client
-
-
-async def close_search_client() -> None:
-    global _client, _http
-    if _http is not None:
-        await _http.aclose()
-    _client = _http = None

@@ -10,8 +10,8 @@ from fastapi import FastAPI
 
 from src.chat.router import router as chat_router
 from src.config import AppSettings
-from src.llm import client as llm_client
-from src.search import client as search_client
+from src.llm import dependencies as llm_dependencies
+from src.search import dependencies as search_dependencies
 
 
 @asynccontextmanager
@@ -23,8 +23,8 @@ async def lifespan(app: FastAPI):
     )
     yield
     # 서버 종료 시 LLM·검색 클라이언트의 HTTP 연결을 닫는다.
-    await llm_client.close_llm_client()
-    await search_client.close_search_client()
+    await llm_dependencies.close_llm_client()
+    await search_dependencies.close_search_client()
 
 
 app = FastAPI(title="Tinker", lifespan=lifespan)

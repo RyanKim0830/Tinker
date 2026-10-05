@@ -20,10 +20,13 @@
 | 테스트 파일 | 대상 레이어 | 진짜 | 가짜 | 검증하는 것 |
 |---|---|---|---|---|
 | `tests/llm/test_client.py` | 인프라 `client` | LLMClient | `httpx.MockTransport` (llama-server) | 요청 JSON(메시지 순서·샘플링 값·stream=False, **tools 전송/생략, tool 메시지 직렬화**), 응답 파싱(**tool_calls, content null**), **모든 실패 경로의 예외 변환**(tool_calls 형식 오류 포함), 응답 무가공, timings 로그 |
+| `tests/llm/test_llm_dependencies.py` | 제공자 `llm/dependencies` | get_llm_client | 없음 | 클라이언트를 하나 공유, 닫으면 다음 호출 때 새로 만듦 |
 | `tests/search/test_search_client.py` | 인프라 `search/client` | SearchClient | `httpx.MockTransport` (SearXNG) | 요청(`/search?q&format=json`), 결과 변환, 0개, 응답 없는 엔진 로그, **모든 실패 경로의 예외 변환**, 설정 |
+| `tests/search/test_search_dependencies.py` | 제공자 `search/dependencies` | get_search_client, get_search_service | 없음 | 클라이언트는 하나 공유·닫으면 초기화, 서비스는 요청마다 새로 만들되 클라이언트는 공유 |
 | `tests/search/test_search_service.py` | 비즈니스 `search/service` | SearchService | `FakeClient` | `[번호] 제목 (URL)\n내용` 포맷, 상위 N개 제한, 0개 문구, 예외 전달 |
 | `tests/chat/test_tools.py` | 비즈니스 `chat/tools` | run_tool | `FakeSearch` | 툴 정의, 잘못된 호출 3종+α → 오류 문자열, **검색 실패 → 문자열**, 버그는 숨기지 않음, 설정 |
 | `tests/chat/test_service.py` | 비즈니스 `chat/service` | ChatService | `FakeLLM`, `FakeSearch` | **루프**(검색 성공/실패, 잘못된 호출, 상한·마지막 왕복 tools 없음, 여러 tool_calls), LLM 에 **무엇을 보내는지**, **이력 짝 유지·실패 턴 미저장**, 예외 변환, 로그, 빈 답 |
+| `tests/chat/test_chat_dependencies.py` | 제공자 `chat/dependencies` | get_chat_service | `FakeLLM`, `FakeSearch` | 요청마다 새 서비스를 만들되 이력은 하나를 공유 |
 | `tests/chat/test_router.py` | 프레젠테이션 `router`/`schemas` | router + FastAPI | `FakeService` (`dependency_overrides`) | 422 거절 조건, 응답 형식, 예외 → 503/502, 내부 메시지 비노출 |
 | `tests/test_app_stack.py` | 레이어 연결 | router+service+tools+client 들 | `MockTransport` 만 (llama-server, SearXNG) | Depends 주입, 예외 사슬 전체, **검색 흐름 전체**, 검색 실패에도 200, 이력(검색 원문 포함)이 요청 사이에 이어지는지 |
 | `tests/test_main.py` | 앱 조립 | lifespan | monkeypatch | 종료 시 두 HTTP 클라이언트 닫기, 로깅 설정 |
@@ -39,7 +42,7 @@
 1. **레이어 경계를 지킨다.** service 테스트에 httpx 가, router 테스트에 llm 모듈이 나오면 설계가 샌 것이다.
 2. **실패 경로를 정상 경로만큼 쓴다.** 이 프로젝트의 핵심 약속은 "외부 에러가 내부 예외로 바뀌어 올라간다"이다.
 3. **정확한 문장이 아니라 성질을 검사한다.** (LLM 답변은 매번 다르다.) 정확한 값은 우리가 만든 입출력(요청 JSON, 상태 코드, 이력 내용)에만 쓴다.
-4. **상태는 새지 않게 한다.** 대화 이력은 모듈 전역이라 `tests/conftest.py` 의 `clean_history` 가 매 테스트 전후로 비운다. `LLMSettings(_env_file=None)`·`SearchSettings(_env_file=None)`·`ChatSettings(_env_file=None)` 로 `.env` 영향도 끊는다.
+4. **상태는 새지 않게 한다.** 대화 이력은 모듈 전역(`chat/dependencies.py`)이라 `tests/conftest.py` 의 `clean_history` 가 매 테스트 전후로 비운다. `LLMSettings(_env_file=None)`·`SearchSettings(_env_file=None)`·`ChatSettings(_env_file=None)` 로 `.env` 영향도 끊는다.
 4-1. **테스트 파일 이름은 겹치지 않게 한다.** `tests/` 아래에 `__init__.py` 가 없어서 같은 이름의 파일(`test_client.py` 등)이 둘이면 pytest 가 충돌한다. 그래서 검색 쪽은 `test_search_client.py` 처럼 접두사를 붙였다 (O-29).
 4-2. **툴 콜링 이력의 불변식**: assistant(tool_calls) 바로 뒤에 같은 id 순서의 tool 결과가 이어져야 한다. `tests/chat/test_service.py` 의 `assert_tool_calls_are_paired` 로 검사한다.
 5. **버그를 고치면 그 버그를 재현하는 테스트를 먼저/같이 추가한다.**

@@ -92,24 +92,3 @@ def _require_str(value: object) -> str:
     if not isinstance(value, str):
         raise TypeError(f"arguments 가 문자열이 아니다: {value!r}")
     return value
-
-
-# --- FastAPI Depends 용 제공자 ---
-# 프로세스 전체에서 AsyncClient 하나를 공유한다. 첫 호출 때 만들고, 서버 종료 시 close_llm_client() 로 닫는다.
-_client: LLMClient | None = None
-_http: httpx.AsyncClient | None = None
-
-
-def get_llm_client() -> LLMClient:
-    global _client, _http
-    if _client is None:
-        _http = httpx.AsyncClient()
-        _client = LLMClient(_http, LLMSettings())
-    return _client
-
-
-async def close_llm_client() -> None:
-    global _client, _http
-    if _http is not None:
-        await _http.aclose()
-    _client = _http = None
