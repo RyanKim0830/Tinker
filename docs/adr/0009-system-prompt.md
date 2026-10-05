@@ -1,6 +1,6 @@
 # ADR-0009: 시스템 프롬프트
 
-- **Status**: Accepted — 사용자 확정 (작업 지시서의 '확정된 결정')
+- **Status**: Superseded by [ADR-0020](0020-react-loop-rules.md) (문구에 날짜와 검색 규칙 추가) — 사용자 확정 (작업 지시서의 '확정된 결정')
 - **Date**: 2026-10-03
 
 ## Context

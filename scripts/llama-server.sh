@@ -18,6 +18,7 @@ export LLAMA_CACHE="$ROOT/models"
 # --reasoning off    : Qwen3.6 은 기본 thinking ON 이라 서버에서 끈다
 # -ngl 99            : 전 레이어 GPU 적재 (MoE 전문가 가중치는 --cpu-moe 로 CPU 에 둔다)
 # --cpu-moe          : MoE 전문가(expert) 가중치는 CPU(RAM)에 둔다 (35B 모델이 VRAM 6GB 에 안 들어가서)
+# 툴 콜링: jinja 채팅 템플릿이 기본 켜져 있어(b11377 --help: default enabled) --jinja 를 따로 주지 않는다.
 # 샘플링 파라미터(temperature 등)는 서버가 아니라 요청마다 llm/client.py 가 보낸다. (값은 llm/config.py 한 곳)
 exec "$LLAMA_DIR/llama-server" \
   -m "$MODEL" \

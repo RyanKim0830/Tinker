@@ -120,3 +120,17 @@ async def test_real_closed_port_prints_connection_hint():
     async with httpx.AsyncClient() as http:
         await cli.chat_loop(http, f"http://127.0.0.1:{port}", scripted("안녕"), out.append)
     assert "서버에 연결할 수 없다" in out[1]
+
+
+async def test_request_timeout_is_450_seconds():
+    """서버가 LLM 을 최대 2번 + 검색을 하므로 CLI 는 450초까지 기다린다."""
+    seen = {}
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        seen["timeout"] = req.extensions["timeout"]
+        return httpx.Response(200, json={"reply": "ok"})
+
+    async with make_http(handler) as http:
+        await cli.ask(http, BASE, "q")
+    assert cli.TIMEOUT == 450.0
+    assert seen["timeout"]["read"] == 450.0

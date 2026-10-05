@@ -1,7 +1,7 @@
 # 작업 기록 (worklog)
 
 단계마다 **만든 것 / 확인 결과 / 문제와 해결**을 적는다. 확인을 못 한 것은 못 했다고 적는다.
-날짜: 2026-10-03 ~ 04.
+날짜: 2026-10-03 ~ 05.
 
 ## 현재 상태 한눈에
 
@@ -12,10 +12,11 @@
 | 2. 비즈니스 `chat/service.py` | 완료 | 12개 통과 | 실제 모델 기억 확인: 대기 |
 | 3. 프레젠테이션 | 완료 | 22개 통과 (422·502·503 포함) | `/docs` 호출, 실모델 연동: 대기 |
 | 4. 클라이언트 `cli.py` | 완료 | 8개 통과 | 터미널에서 실제 대화: 대기 |
+| **2단계** 툴 콜링 + 웹 검색 (스니펫만) | 완료 (체크포인트 0~4) | 전체 190개 통과 | **통과** (2026-10-05): tools→tool_calls, SearXNG JSON, 실제 CLI 대화(검색/잡담/후속), 검색 서버 꺼진 상태. 상세는 아래 "2단계" |
 
 지시서는 "각 단계는 확인을 통과한 뒤 다음 단계로" 라고 했다. 이번에는 **사용자가 서버 문제를 해결하는 동안 서버 없이 가능한 부분(코드·mock 테스트·문서)을 먼저 진행해도 된다고 허락**해서 순서를 어겼다. 위 표의 "대기" 항목이 통과하기 전에는 해당 단계를 완료로 보지 않는다.
 
-테스트 전체: `pytest` → 65 passed, 5 deselected (integration).
+테스트 전체: `pytest` → **190 passed**, 13 deselected (integration). `pytest -m integration` → **13 passed** (실제 llama-server + SearXNG, 2026-10-05). (1단계 시점은 65 passed.)
 
 ## 0단계 — llama-server 실행
 
@@ -128,3 +129,77 @@
 - 4~11번 커밋: 각각 67 passed, 5 deselected.
 - 샘플링 값은 main 과 같은 권장값이므로 해당 커밋은 출처·설명 갱신을 뜻하는 `docs` 로 기록했다.
 - 기존 사용자 시스템 프롬프트 변경과 허용된 테스트 기대값 수정은 하나의 별도 `feat` 커밋으로 묶었다.
+
+## 2단계 — 툴 콜링 + 웹 검색 (1단계: 스니펫만), 2026-10-05
+
+브랜치 `feat/tool-calling-web-search` (main 에서 분기, push 안 함). 지시서의 체크포인트(0~4)마다 멈추고 확인받는 방식이었으나, 중간에 사용자가 "체크포인트별로 멈추지 말고 끝까지 다 짜고 말하라"고 해서 체크포인트 1~4 는 멈추지 않고 이어서 했다. 확인 항목은 체크포인트별로 그대로 수행했다.
+
+### 커밋
+| 커밋 | 내용 |
+|---|---|
+| `2ae821f` chore: set llama-server context to 128k | 두 스크립트 `-c 131072`, 주석·`\` 정리 |
+| `b814c6a` chore: add searxng docker config | `searxng/compose.yaml`, `settings.yml` |
+| `4bbeae6` refactor: move Message to src/message.py | 체크포인트 1 |
+| `202e849` feat: add searxng client | 체크포인트 2 (client·config·exceptions) |
+| `50d0547` feat: add web search service | 체크포인트 2 (service + 통합 테스트) |
+| `1cfd9bf` feat: support tool calls in llm client | 체크포인트 3 |
+| `08e1ecb` feat: add web_search tool | 체크포인트 4 (tools·config) |
+| `b9e971b` feat: add react loop to chat service | 체크포인트 4 (루프·main·로깅) |
+| `ab90f2f` chore: raise cli timeout | 150→450초 |
+| `a0ea1b1`, `e32877c` docs | ADR / 나머지 문서. 지시서의 "문서는 마지막에 모아서" 쪽을 골랐다 (ADR 번호는 아래 머지에서 0019~0022 로 바뀜) |
+
+지시서의 예상 흐름과 달라진 점: `feat: add searxng client`·`add web search service` 는 같은 순서, `chore: set llama-server context to 128k` 는 1번 그대로다. ADR 커밋(10번)은 문서 전체 커밋 앞에 따로 두었다.
+
+### 체크포인트 0 — 환경
+- **한 것**: 스크립트 `-c 131072`, `--jinja` 는 `--help` 에서 **기본 enabled** 라 추가하지 않음, `llama-server.sh` 마지막 `\` 제거, `searxng/` 설정 작성.
+- **실서버 확인**: llama-server(b11377, `-c 131072`) 기동 → `/health` ok. `tools` 를 넣은 요청에 `finish_reason: "tool_calls"`, `arguments` 는 JSON 문자열(`{"query":"서울 날씨"}`), `content` 는 null 이 아니라 `""`. WSL 에서 `localhost:8080`·`localhost:8888` 모두 접속. SearXNG `format=json` 요청에 `results` 20개(한국어 검색 포함). 응답 없는 엔진: brave(too many requests), duckduckgo(CAPTCHA).
+- **측정**: 캐시 없는 첫 요청 — 프롬프트 312 토큰 22.3초(14 tok/s), 생성 27 토큰 2.1초(12 tok/s).
+- **VRAM/RAM 사용량**: 지시서가 준 실측값(전용 3.8/6.0GB, 공유 0.2GB, RAM 54%)을 ADR 에 인용했다. **이번 세션에서는 직접 측정하지 않았다.**
+- **문제와 해결**:
+  1. **Docker Desktop 이 안 떴다.** 처음엔 WSL/mirrored 문제를 의심했으나 로그를 보니 원인은 다른 것이었다 — 설치된 Docker Desktop 이 **4.22.1(2023)** 이었고, 데이터 디스크 `%LOCALAPPDATA%\Docker\wsl\disk\docker_data.vhdx`(2023-10-26, 1.4GB)가 **손상**돼 있었다(맨 앞 8바이트가 VHDX 시그니처 아님, 4.93.0 로그에 `invalid vhdx file`). 조치: `winget upgrade Docker.DockerDesktop` 으로 **4.93.0** 으로 올리고, 손상 디스크를 사용자가 `docker_data.vhdx.corrupt-backup` 으로 이름 변경(내가 시도한 이름 변경은 권한 확인에서 거부돼 사용자가 직접 함). 새 디스크가 만들어져 Docker 엔진 29.8.1 이 떴다. (O-32)
+  2. WSL mirrored 네트워킹은 이미 설정돼 있었고(`.wslconfig`), 사용자가 O-21 의 해결 방식이 맞다고 확인했다 → [ADR-0022](adr/0022-wsl-windows-mirrored-networking.md).
+- **미확인**: 128k 를 끝까지 채웠을 때의 속도·메모리.
+
+### 체크포인트 1 — 리팩터링
+- `Message` 를 `src/message.py` 로 이동, import 만 변경 (`ToolCall`·tool 필드는 쓰는 체크포인트 3 에서 추가). 기존 테스트 65개 **그대로 통과**. 테스트 import 순서도 정리.
+
+### 체크포인트 2 — 검색 단독
+- `src/search/` 전체 (client·service·config·exceptions) + 단위 테스트 38개(client 29 + service 9). 합계 103개 통과.
+- **실서버 확인**: 통합 테스트 3개 통과(`tests/integration/test_searxng.py`). `search("서울 날씨")` 출력이 `[1] 서울특별시, 서울시, 대한민국 시간별 날씨 - AccuWeather (https://...)\n서울특별시, ... ` 형식으로 5개.
+- **문제와 해결**: 새 테스트 파일 이름이 기존(`test_client.py`, `test_service.py`)과 겹쳐 pytest 수집 오류. `tests/` 에 `__init__.py` 가 없어서이고, 구조를 바꾸지 않고 `test_search_*.py` 로 접두사를 붙였다 (O-29).
+
+### 체크포인트 3 — LLM 툴 지원
+- `Message` 에 `tool_calls`(tuple of `ToolCall`)·`tool_call_id`, `role="tool"` 추가. `LLMClient.chat(messages, tools=None) -> Message`. tools 는 있을 때만 요청에 넣음(빈 목록도 생략). 응답 파싱(tool_calls, content null → `""`), 형식 오류는 `LLMResponseError`. finish_reason·timings 로그.
+- 단위 테스트(llm 클라이언트 23→42개, +19개: 툴 전송/생략, 파싱, 여러 호출 순서, null content, tool 메시지 직렬화, 형식 오류 6종 추가). 전체 122개 통과.
+- **실서버 확인**: 통합 테스트 — 실제 llama-server 에 tools 를 보내 `Message.tool_calls` 로 파싱, `assistant(tool_calls)+tool` 짝을 다시 보내 tools 없이 최종 답을 받음. 7개 통과(약 56초).
+
+### 체크포인트 4 — 루프
+- `chat/config.py`(`CHAT_MAX_TOOL_ROUNDS`, 기본 2, 1 이상), `chat/tools.py`(`TOOLS`, `run_tool`), `chat/service.py`(루프), `main.py`(검색 클라이언트 닫기, `logging.basicConfig`), `cli.py`(450초). 기존 시스템 프롬프트 상수 `SYSTEM_PROMPT` 는 `build_system_prompt(today)` 로 바뀜.
+- 단위 테스트: 검색 성공 / 검색 실패→문자열 / 잘못된 툴 호출 3종 / 상한 도달 시 tools 없이 호출 / LLM 실패 시 이력 미저장(검색 후 실패 포함) / 이력의 짝 유지. 전체 **190개 통과**.
+- **실서버 확인 (CLI, 서버 로그 포함)**
+  - 검색이 필요한 질문 "오늘 서울 날씨 어때?" → round 1: `tool_calls=web_search {"query":"서울 날씨 2026년 10월 5일"}`, 검색 결과 20개 중 5개, round 2: tools 없이 답("비, 최저 14°C~최고 19°C, 강수확률 60%"). 답이 스니펫에서 나온 것은 맞지만 **정확성은 검증하지 않았다.**
+  - 잡담 "안녕, 잘 지냈어?" → 툴 호출 없이 1 왕복.
+  - 후속 질문 "아까 검색 결과 첫 번째 출처 사이트가 어디였어?" → 툴 호출 없이(round 1 `tool_calls=()`) 이력의 검색 원문에서 AccuWeather URL 을 답함.
+  - **SearXNG 컨테이너를 멈추고** 같은 종류 질문 → `검색 실패(연결)` 경고 로그, 서비스는 200, LLM 이 "검색 서버에 연결할 수 없어 확인하지 못했다"고 답. 이후 컨테이너 다시 시작.
+  - 로그 확인: 라운드별 content·tool_calls 원문, 검색어, 결과 개수(20/LLM 5), 응답 없는 엔진(`brave: Suspended: too many requests`, `duckduckgo: CAPTCHA`), llama-server timings.
+  - 통합 테스트(실제 모델 + 실제 SearXNG) 13개 통과(약 40초).
+- **측정값 (서버 로그)**
+
+  | 구간 | 프롬프트 | 생성 | 비고 |
+  |---|---|---|---|
+  | 검색 질문 round 1 (툴 호출) | 18 토큰 새로 처리(캐시 334) 0.87초 | 40 토큰 1.85초 (21.1 tok/s) | |
+  | SearXNG 검색 | — | — | 약 1.2초 (결과 20개) |
+  | 검색 질문 round 2 (답) | 762 토큰 6.16초 (123.8 tok/s) | 66 토큰 2.58초 (25.2 tok/s) | 도구 호출부터 답까지 약 10초 |
+  | 잡담 | 746 토큰(캐시 391) 4.25초 | 21 토큰 0.83초 | |
+  | 후속 질문 | 27 토큰(캐시 1157) 0.53초 | 118 토큰 4.9초 (23.8 tok/s) | |
+
+  검색 한 번이 이력에 더하는 양은 약 700~800 토큰이다.
+- **미확인 / 한계**: 모델이 툴을 안 불러야 할 때 부르거나 반대로 안 부르는 비율(평가 세트 없음, O-38). 툴 호출 텍스트 누출(O-39)은 관찰되지 않았다. 새 테스트의 **변이 테스트는 하지 않았다.** 컨텍스트 한도(O-06). (샘플링 값 O-27 은 main 쪽 작업에서 공식 카드로 확인돼 해결됨.)
+
+### 임의로 정한 것
+[open-items.md](open-items.md) O-22 ~ O-32 와 [ADR-0020](adr/0020-react-loop-rules.md) 의 "임의로 정한 것" 참고. 특히 **O-23(상한 `max_tool_rounds=2` 를 "LLM 총 2번 호출, 2번째는 tools 없이"로 해석)** 은 의도와 다를 수 있어 사용자 확인이 필요하다.
+
+### main 과 머지 (2026-10-05)
+- main 에 PR #1(`feat/logging-context-128k`: 로깅, 컨텍스트 131072, Qwen3.6 문서·ADR 0016~0018, Tinker 시스템 프롬프트)이 먼저 들어가서 이 브랜치와 13개 파일이 충돌했다. 한쪽으로 덮으면 반대쪽 작업이 사라지는 충돌이라(`service.py` 는 한쪽 프롬프트 한 줄 vs 다른 쪽 루프 전체) `git merge origin/main` 으로 파일마다 합쳤다. push 는 아직 하지 않았다.
+- 합친 방식: ① 시스템 프롬프트는 main 의 Tinker 페르소나를 `BASE_PROMPT` 로 쓰고 날짜·검색 규칙을 붙임. ② 로깅은 main 의 포맷·router/client 로그를 쓰고 이쪽의 라운드 로그·검색 클라이언트 닫기를 얹음(main 의 로그 테스트는 제 `finish_reason/timings` 레코드를 포함하도록 기대값 갱신, 요청 로그 문구는 그대로). ③ 스크립트 주석은 main 문구에 jinja 설명만 추가. ④ ADR: main 의 0016~0018 은 그대로 두고 이 브랜치 것을 **0019~0022 로 번호 변경**, 모델·컨텍스트가 main 의 0017·0018 과 중복인 ADR 은 삭제하고 고유 내용(`--jinja` 기본 활성 확인)은 ADR-0020 으로 옮김.
+- 확인: 머지 후 단위 테스트 **192개 통과**(이전 190 + main 쪽 2). 실서버 확인은 머지 후 다시 하지 못했다(llama-server·SearXNG 가 꺼져 있음).

@@ -13,7 +13,7 @@
 | [0006](0006-httpx-async-client.md) | HTTP 클라이언트: httpx AsyncClient (OpenAI SDK 미사용) | 확정 |
 | [0007](0007-post-chat-endpoint.md) | 엔드포인트: POST /chat 하나, 스트리밍 없음 | 확정 |
 | [0008](0008-in-memory-history.md) | 대화 이력: 서버 메모리의 리스트 하나, session_id 없음 | 확정 |
-| [0009](0009-system-prompt.md) | 시스템 프롬프트 | 확정 |
+| [0009](0009-system-prompt.md) | 시스템 프롬프트 | 대체됨 (0020) |
 | [0010](0010-async-and-depends.md) | 라우터와 LLM 호출은 async, LLM 클라이언트는 Depends 로 주입 | 확정 |
 | [0011](0011-pydantic-settings.md) | 설정: 모듈별 pydantic BaseSettings | 확정 |
 | [0012](0012-llm-exceptions.md) | llama-server 연결 실패는 llm 모듈 전용 예외로 구분 | 확정 |
@@ -23,5 +23,9 @@
 | [0016](0016-logging.md) | 표준 logging 설정과 요청·응답·예외 기록 | 확정 |
 | [0017](0017-model-qwen3-6-35b-a3b.md) | 로컬 LLM 모델: Qwen3.6-35B-A3B Q4_K_M + CPU MoE | 확정 |
 | [0018](0018-context-131072.md) | 실측에 따른 컨텍스트 131072 | 확정 |
+| [0019](0019-searxng-web-search.md) | 웹 검색에 SearXNG 채택 (로컬, Docker Desktop, 포트 8888) | 확정 |
+| [0020](0020-react-loop-rules.md) | ReAct(툴 콜링) 루프 규칙: 상한, 실패를 tool 결과로, 이력 전체 저장 (0009 대체) | 확정 (일부 해석은 임시: O-23~) |
+| [0021](0021-structure-message-search-tools.md) | 구조 변경: src/message.py, search 패키지, chat/tools.py | 확정 |
+| [0022](0022-wsl-windows-mirrored-networking.md) | WSL→Windows 연결: WSL mirrored 네트워킹 (O-21 해결) | 확정 |
 
 새 ADR 은 `template.md` 를 복사해서 쓴다.

@@ -12,4 +12,6 @@ class AppSettings(BaseSettings):
     # FastAPI 서버가 듣는 주소. 개인용이라 기본은 로컬에서만 접근 가능하게 한다.
     host: str = "127.0.0.1"
     port: int = 8000
+
+    # 로그 수준 (DEBUG, INFO, WARNING ...). 라운드별 LLM 응답·검색어 등은 INFO 로 남는다.
     log_level: str = "INFO"
