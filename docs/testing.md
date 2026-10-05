@@ -5,7 +5,7 @@
 ## 실행
 
 ```bash
-.venv/bin/python -m pytest                    # 단위/흐름 테스트 (서버 불필요, 약 2초, 190개)
+.venv/bin/python -m pytest                    # 단위/흐름 테스트 (서버 불필요, 약 2초, 192개)
 .venv/bin/python -m pytest -m integration     # 실제 llama-server + SearXNG 필요 (13개, 약 40~60초; README 참고)
 .venv/bin/python -m pytest -m "" -q           # 전부
 .venv/bin/python -m pytest tests/llm -q       # 한 레이어만

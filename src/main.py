@@ -17,7 +17,10 @@ from src.search import client as search_client
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 표준 logging 설정. 각 모듈은 logging.getLogger(__name__) 로 남기고, 출력 형식·수준은 여기서 한 번만 정한다.
-    logging.basicConfig(level=AppSettings().log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    logging.basicConfig(
+        level=AppSettings().log_level,
+        format="%(asctime)s %(levelname)-5s [%(name)s] %(message)s",
+    )
     yield
     # 서버 종료 시 LLM·검색 클라이언트의 HTTP 연결을 닫는다.
     await llm_client.close_llm_client()

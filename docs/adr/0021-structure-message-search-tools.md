@@ -1,4 +1,4 @@
-# ADR-0019: 구조 변경 — `src/message.py`, `search` 패키지, `chat/tools.py`
+# ADR-0021: 구조 변경 — `src/message.py`, `search` 패키지, `chat/tools.py`
 
 - **Status**: Accepted — 사용자 확정 (2026-10-05, 2단계 작업 지시서의 '확정된 결정'). [ADR-0004](0004-layered-architecture.md)·[ADR-0005](0005-package-by-feature.md) 를 따른다.
 - **Date**: 2026-10-05

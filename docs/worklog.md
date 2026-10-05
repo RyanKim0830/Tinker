@@ -94,6 +94,42 @@
 ## 문서화
 조사·채택 → [documentation-guide.md](documentation-guide.md). 구조도 [architecture.md](architecture.md), 결정 15개 [adr/](adr/), 임시결정·제외 항목 [open-items.md](open-items.md), 테스트 [testing.md](testing.md).
 
+## 로깅·128K 컨텍스트·35B-A3B 문서 정리 (2026-10-05)
+
+### 만든 것
+
+- 표준 logging 도입: `APP_LOG_LEVEL` (기본 INFO), lifespan 시작에서 `basicConfig` 설정. router 의 503·502 처리 지점에서 traceback 을 한 번 기록한다. client 는 요청 메시지 개수(INFO), 전체 payload(DEBUG), 응답 HTTP 상태와 소요 시간(INFO)을 기록한다. 중간 레이어의 예외 로깅·미들웨어·응답 가공은 추가하지 않았다 ([ADR-0016](adr/0016-logging.md)).
+- 두 실행 스크립트의 컨텍스트를 `131072` 로 맞추고 옵션 주석을 현재 모델 기준으로 갱신했다 ([ADR-0018](adr/0018-context-131072.md)). O-06 에 한도 처리 자체는 여전히 없음을 적었다.
+- 현재 모델을 Qwen3.6-35B-A3B Q4_K_M GGUF + `--cpu-moe` 로 문서·다이어그램에 반영했다. ADR-0001 은 ADR-0017 로, ADR-0002 의 컨텍스트 결정은 ADR-0018 로 대체 표시했다.
+- [공식 모델 카드](https://huggingface.co/Qwen/Qwen3.6-35B-A3B#best-practices) 의 non-thinking 권장값을 확인했다: 기존에 전송하던 4개 값은 `temperature=0.7`, `top_p=0.8`, `top_k=20`, `presence_penalty=1.5` 이다. 작업 시작 시 미커밋 변경이던 temperature 0.3 은 지시에 따라 확인된 권장값 0.7 로 맞췄다. 카드에는 `min_p=0.0`, `repetition_penalty=1.0` 도 있지만 이번에는 기존 설정·payload 의 4개 항목만 유지했다. 실제 서버의 추가 두 항목 기본값은 확인하지 않았다.
+- 기존 사용자 변경인 `src/chat/service.py` 의 시스템 프롬프트는 그대로 보존했다. 최신 `origin/main` 과 로컬 `main` 이 동일함을 확인하고 `feat/logging-context-128k` 브랜치를 만들었다. 후속 지시에 따라 구현 순서와 의도별로 커밋한다. 각 커밋 대상 상태에서 integration 을 제외한 전체 pytest 를 확인한다. push·PR 은 하지 않는다.
+
+### 사용자 실측값
+
+측정일 2026-10-05, RTX 4050 Laptop 6GB, Qwen3.6-35B-A3B Q4_K_M, `--cpu-moe`, KV q8_0. 아래는 사용자가 직접 잰 수치이며 이번 작업에서 재측정하지 않았다.
+
+- `-c 393216`: 전용 GPU 메모리 5.7/6.0GB + 공유 GPU 메모리 1.9GB, 시스템 RAM 31.2/31.6GB(99%) → VRAM 이 넘쳐 공유 메모리로 흘러감. 사용 불가로 판단.
+- `-c 131072`: 전용 GPU 메모리 3.8/6.0GB, 공유 0.2GB, RAM 17.2/31.6GB(54%) → 정상.
+- 두 값의 차이로 역산하면 컨텍스트 토큰당 약 14KB (KV 캐시 + 컨텍스트에 비례하는 버퍼, 추정치).
+- **서버 로그의 KV 캐시 크기(MiB)는 아직 확인하지 않았다.** 실제 35B 생성 속도·WSL 실행 시 메모리 사용량·실서버 로깅 출력도 이번에는 확인하지 않았다.
+
+### 확인 결과
+
+- `caplog` 테스트 두 개 추가: 연결 불가 503 의 router ERROR 레코드와 `exc_info`, 정상 LLM 호출의 요청·응답 INFO 레코드와 소요 시간.
+- `bash -n scripts/llama-server.sh` 통과. 실서버 integration 테스트는 이번 범위에서 제외한다.
+- 샌드박스에서는 기존 첫 ASGI 테스트가 비동기 스레드 대기에서 멈췄다. 승인 후 샌드박스 밖에서 테스트를 실행했다. 기존 시스템 프롬프트와 테스트 기대값의 불일치는 사용자가 추가로 허용한 `tests/chat/test_service.py` 의 기대 문자열 수정으로 해결했다. 새 프롬프트는 유지했다.
+- 최종 `.venv/bin/python -m pytest -q`: **67 passed, 5 deselected (integration), 1.40s**. 전체 테스트 통과.
+- `APP_LOG_LEVEL=DEBUG` 환경변수 반영과 lifespan 의 `basicConfig` 호출 인자도 별도로 확인했다.
+- `git diff --check`, 수정 문서의 상대 링크 확인 통과.
+
+### 커밋별 검증
+
+- 각 커밋 대상 index 를 별도 임시 디렉토리에 내보내 전체 pytest 를 실행한 뒤 커밋했다. 뒤 단계의 작업 트리 변경이 앞 단계 테스트에 섞이지 않게 확인했다.
+- 1~3번 커밋: 각각 65 passed, 5 deselected.
+- 4~11번 커밋: 각각 67 passed, 5 deselected.
+- 샘플링 값은 main 과 같은 권장값이므로 해당 커밋은 출처·설명 갱신을 뜻하는 `docs` 로 기록했다.
+- 기존 사용자 시스템 프롬프트 변경과 허용된 테스트 기대값 수정은 하나의 별도 `feat` 커밋으로 묶었다.
+
 ## 2단계 — 툴 콜링 + 웹 검색 (1단계: 스니펫만), 2026-10-05
 
 브랜치 `feat/tool-calling-web-search` (main 에서 분기, push 안 함). 지시서의 체크포인트(0~4)마다 멈추고 확인받는 방식이었으나, 중간에 사용자가 "체크포인트별로 멈추지 말고 끝까지 다 짜고 말하라"고 해서 체크포인트 1~4 는 멈추지 않고 이어서 했다. 확인 항목은 체크포인트별로 그대로 수행했다.
@@ -110,7 +146,7 @@
 | `08e1ecb` feat: add web_search tool | 체크포인트 4 (tools·config) |
 | `b9e971b` feat: add react loop to chat service | 체크포인트 4 (루프·main·로깅) |
 | `ab90f2f` chore: raise cli timeout | 150→450초 |
-| (이후) docs 커밋 2개 | ADR 5개 / 나머지 문서. 지시서의 "문서는 마지막에 모아서" 쪽을 골랐다 |
+| `a0ea1b1`, `e32877c` docs | ADR / 나머지 문서. 지시서의 "문서는 마지막에 모아서" 쪽을 골랐다 (ADR 번호는 아래 머지에서 0019~0022 로 바뀜) |
 
 지시서의 예상 흐름과 달라진 점: `feat: add searxng client`·`add web search service` 는 같은 순서, `chore: set llama-server context to 128k` 는 1번 그대로다. ADR 커밋(10번)은 문서 전체 커밋 앞에 따로 두었다.
 
@@ -121,7 +157,7 @@
 - **VRAM/RAM 사용량**: 지시서가 준 실측값(전용 3.8/6.0GB, 공유 0.2GB, RAM 54%)을 ADR 에 인용했다. **이번 세션에서는 직접 측정하지 않았다.**
 - **문제와 해결**:
   1. **Docker Desktop 이 안 떴다.** 처음엔 WSL/mirrored 문제를 의심했으나 로그를 보니 원인은 다른 것이었다 — 설치된 Docker Desktop 이 **4.22.1(2023)** 이었고, 데이터 디스크 `%LOCALAPPDATA%\Docker\wsl\disk\docker_data.vhdx`(2023-10-26, 1.4GB)가 **손상**돼 있었다(맨 앞 8바이트가 VHDX 시그니처 아님, 4.93.0 로그에 `invalid vhdx file`). 조치: `winget upgrade Docker.DockerDesktop` 으로 **4.93.0** 으로 올리고, 손상 디스크를 사용자가 `docker_data.vhdx.corrupt-backup` 으로 이름 변경(내가 시도한 이름 변경은 권한 확인에서 거부돼 사용자가 직접 함). 새 디스크가 만들어져 Docker 엔진 29.8.1 이 떴다. (O-32)
-  2. WSL mirrored 네트워킹은 이미 설정돼 있었고(`.wslconfig`), 사용자가 O-21 의 해결 방식이 맞다고 확인했다 → [ADR-0020](adr/0020-wsl-windows-mirrored-networking.md).
+  2. WSL mirrored 네트워킹은 이미 설정돼 있었고(`.wslconfig`), 사용자가 O-21 의 해결 방식이 맞다고 확인했다 → [ADR-0022](adr/0022-wsl-windows-mirrored-networking.md).
 - **미확인**: 128k 를 끝까지 채웠을 때의 속도·메모리.
 
 ### 체크포인트 1 — 리팩터링
@@ -158,7 +194,12 @@
   | 후속 질문 | 27 토큰(캐시 1157) 0.53초 | 118 토큰 4.9초 (23.8 tok/s) | |
 
   검색 한 번이 이력에 더하는 양은 약 700~800 토큰이다.
-- **미확인 / 한계**: 모델이 툴을 안 불러야 할 때 부르거나 반대로 안 부르는 비율(평가 세트 없음, O-38). 툴 호출 텍스트 누출(O-39)은 관찰되지 않았다. 새 테스트의 **변이 테스트는 하지 않았다.** Qwen3.6 에 맞는 샘플링 값(O-27). 컨텍스트 한도(O-06).
+- **미확인 / 한계**: 모델이 툴을 안 불러야 할 때 부르거나 반대로 안 부르는 비율(평가 세트 없음, O-38). 툴 호출 텍스트 누출(O-39)은 관찰되지 않았다. 새 테스트의 **변이 테스트는 하지 않았다.** 컨텍스트 한도(O-06). (샘플링 값 O-27 은 main 쪽 작업에서 공식 카드로 확인돼 해결됨.)
 
 ### 임의로 정한 것
-[open-items.md](open-items.md) O-22 ~ O-32 와 [ADR-0018](adr/0018-react-loop-rules.md) 의 "임의로 정한 것" 참고. 특히 **O-23(상한 `max_tool_rounds=2` 를 "LLM 총 2번 호출, 2번째는 tools 없이"로 해석)** 은 의도와 다를 수 있어 사용자 확인이 필요하다.
+[open-items.md](open-items.md) O-22 ~ O-32 와 [ADR-0020](adr/0020-react-loop-rules.md) 의 "임의로 정한 것" 참고. 특히 **O-23(상한 `max_tool_rounds=2` 를 "LLM 총 2번 호출, 2번째는 tools 없이"로 해석)** 은 의도와 다를 수 있어 사용자 확인이 필요하다.
+
+### main 과 머지 (2026-10-05)
+- main 에 PR #1(`feat/logging-context-128k`: 로깅, 컨텍스트 131072, Qwen3.6 문서·ADR 0016~0018, Tinker 시스템 프롬프트)이 먼저 들어가서 이 브랜치와 13개 파일이 충돌했다. 한쪽으로 덮으면 반대쪽 작업이 사라지는 충돌이라(`service.py` 는 한쪽 프롬프트 한 줄 vs 다른 쪽 루프 전체) `git merge origin/main` 으로 파일마다 합쳤다. push 는 아직 하지 않았다.
+- 합친 방식: ① 시스템 프롬프트는 main 의 Tinker 페르소나를 `BASE_PROMPT` 로 쓰고 날짜·검색 규칙을 붙임. ② 로깅은 main 의 포맷·router/client 로그를 쓰고 이쪽의 라운드 로그·검색 클라이언트 닫기를 얹음(main 의 로그 테스트는 제 `finish_reason/timings` 레코드를 포함하도록 기대값 갱신, 요청 로그 문구는 그대로). ③ 스크립트 주석은 main 문구에 jinja 설명만 추가. ④ ADR: main 의 0016~0018 은 그대로 두고 이 브랜치 것을 **0019~0022 로 번호 변경**, 모델·컨텍스트가 main 의 0017·0018 과 중복인 ADR 은 삭제하고 고유 내용(`--jinja` 기본 활성 확인)은 ADR-0020 으로 옮김.
+- 확인: 머지 후 단위 테스트 **192개 통과**(이전 190 + main 쪽 2). 실서버 확인은 머지 후 다시 하지 못했다(llama-server·SearXNG 가 꺼져 있음).

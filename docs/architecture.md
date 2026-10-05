@@ -21,7 +21,7 @@ flowchart LR
     searx -- "검색 질의" --> web
 ```
 
-LLM 추론은 이 PC 안에서 끝난다. 웹 검색만 SearXNG 가 인터넷의 검색엔진에 질의한다(외부 검색 API 키 없음, [ADR-0017](adr/0017-searxng-web-search.md)). Tinker(FastAPI·cli)는 WSL, llama-server 와 SearXNG(Docker Desktop)는 Windows 에서 돌아서 **WSL → Windows 경계를 넘는다.** WSL mirrored 네트워킹으로 `localhost` 를 공유한다 ([ADR-0015](adr/0015-llama-server-on-windows.md), [ADR-0020](adr/0020-wsl-windows-mirrored-networking.md)).
+LLM 추론은 이 PC 안에서 끝난다. 웹 검색만 SearXNG 가 인터넷의 검색엔진에 질의한다(외부 검색 API 키 없음, [ADR-0019](adr/0019-searxng-web-search.md)). Tinker(FastAPI·cli)는 WSL, llama-server 와 SearXNG(Docker Desktop)는 Windows 에서 돌아서 **WSL → Windows 경계를 넘는다.** WSL mirrored 네트워킹으로 `localhost` 를 공유한다 ([ADR-0015](adr/0015-llama-server-on-windows.md), [ADR-0022](adr/0022-wsl-windows-mirrored-networking.md)).
 
 ## 2. Container — 실행되는 프로세스
 
@@ -46,11 +46,13 @@ flowchart LR
 
 | 프로세스 | 실행 위치 | 시작 방법 | 상태 |
 |---|---|---|---|
-| llama-server | **Windows** (현재) | PowerShell 에서 `scripts\llama-server-moe.ps1` | 모델 로드 상태(VRAM) |
+| llama-server | **Windows** (현재) | PowerShell 에서 `scripts\llama-server-moe.ps1` | 모델 로드 상태(VRAM·시스템 RAM) |
 | llama-server (대안) | WSL | `scripts/llama-server.sh` | 같음. 둘 다 8080 이라 하나만 띄운다 |
 | SearXNG | Windows (Docker Desktop) | `docker compose -f searxng/compose.yaml up -d` | 없음 |
 | FastAPI 서버 | WSL | `python -m src.main` | **대화 이력**(메모리, 재시작하면 사라짐) |
 | cli | WSL | `python cli.py` | 없음 (이력은 서버 소유) |
+
+모델은 Qwen3.6-35B-A3B Q4_K_M GGUF 로 고정한다. `--cpu-moe` 로 전문가 가중치는 시스템 RAM 에 둔다 ([ADR-0017](adr/0017-model-qwen3-6-35b-a3b.md)). Windows·WSL 스크립트 모두 컨텍스트 `131072`, KV 캐시 q8_0 을 쓴다 ([ADR-0018](adr/0018-context-131072.md)).
 
 ## 3. Component — FastAPI 서버 내부 (레이어드 + 기능별 패키징)
 
@@ -91,7 +93,7 @@ flowchart TB
     client -.-> msg
 ```
 
-**`llm` 과 `search` 는 서로를 모른다.** `chat`(service·tools)만 둘을 엮는다. 둘이 같이 쓰는 대화 형식은 `src/message.py` 에 둔다 ([ADR-0019](adr/0019-structure-message-search-tools.md)).
+**`llm` 과 `search` 는 서로를 모른다.** `chat`(service·tools)만 둘을 엮는다. 둘이 같이 쓰는 대화 형식은 `src/message.py` 에 둔다 ([ADR-0021](adr/0021-structure-message-search-tools.md)).
 
 ### 레이어 규칙 (의존은 위 → 아래로만, 건너뛰기 금지)
 

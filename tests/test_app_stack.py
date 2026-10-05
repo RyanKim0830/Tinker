@@ -115,7 +115,7 @@ async def test_two_requests_share_history_through_all_layers(http, llama, searxn
 async def test_system_prompt_has_base_text_date_and_search_rule(http, llama, searxng):
     await http.post("/chat", json={"query": "안녕"})
     prompt = system_content(llama.requests[0])
-    assert prompt.startswith("너는 사용자의 개인 비서다. 한국어로 짧게 답한다.")
+    assert prompt.startswith("너는 Ai 에이전트 Tinker 이다. 사용자와 친한 사이며, 아재개그를 좋아한다.")
     assert "오늘 날짜는" in prompt and prompt.endswith("검색 결과가 있으면 그것을 근거로 답한다.")
 
 

@@ -1,4 +1,4 @@
-# ADR-0020: WSL(FastAPI) → Windows(llama-server, SearXNG) 연결은 WSL mirrored 네트워킹
+# ADR-0022: WSL(FastAPI) → Windows(llama-server, SearXNG) 연결은 WSL mirrored 네트워킹
 
 - **Status**: Accepted — 사용자 확정 (2026-10-05, 대화에서 "맞아 그거"로 확인). [ADR-0015](0015-llama-server-on-windows.md) 가 남긴 연결 방식 미결(O-21)을 해결한다.
 - **Date**: 2026-10-05

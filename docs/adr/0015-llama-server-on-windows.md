@@ -38,5 +38,5 @@
 
 ## Revisit when
 
-- ~~O-21(연결 방식)이 결정되면 이 ADR 의 Consequences 첫 항목을 새 ADR 로 확정한다.~~ → [ADR-0020](0020-wsl-windows-mirrored-networking.md) 에서 mirrored 네트워킹으로 확정됨 (2026-10-05).
+- ~~O-21(연결 방식)이 결정되면 이 ADR 의 Consequences 첫 항목을 새 ADR 로 확정한다.~~ → [ADR-0022](0022-wsl-windows-mirrored-networking.md) 에서 mirrored 네트워킹으로 확정됨 (2026-10-05).
 - WSL 대안을 쓸 일이 없어지면 `scripts/llama-server.sh` 와 `~/llama.cpp/` 정리를 검토.

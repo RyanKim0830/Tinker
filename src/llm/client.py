@@ -7,6 +7,7 @@
 비즈니스 판단(대화 이력 관리, 프롬프트 구성 등)은 하지 않는다.
 """
 import logging
+import time
 
 import httpx
 
@@ -54,10 +55,15 @@ class LLMClient:
         }
         if tools:
             payload["tools"] = tools
+        logger.info("LLM 요청: messages=%d", len(messages))
+        logger.debug("LLM payload: %s", payload)
+        started = time.perf_counter()
         try:
             resp = await self._http.post(f"{s.base_url}/v1/chat/completions", json=payload, timeout=s.timeout)
         except httpx.TransportError as e:  # 연결 실패·타임아웃·전송 중 끊김
             raise LLMConnectionError(f"llama-server 에 연결하지 못했다 ({s.base_url}): {e!r}") from e
+
+        logger.info("LLM 응답: status=%d, %.2fs", resp.status_code, time.perf_counter() - started)
 
         if resp.status_code != 200:
             raise LLMResponseError(f"llama-server 가 HTTP {resp.status_code} 를 돌려줬다: {resp.text[:200]}")

@@ -1,7 +1,7 @@
 # Tinker
 
 혼자 쓰는 개인 비서 AI. **터미널에서 대화가 이어지는 로컬 LLM 챗봇**이고, 필요하면 LLM 이 스스로 **웹 검색 툴을 호출**해 검색 결과(스니펫)를 근거로 답한다 (2단계).
-LLM 은 외부 클라우드 API 없이 이 PC 의 GPU(6GB)+RAM 에서 Qwen3.6-35B-A3B(Q4_K_M, 컨텍스트 128k)를 돌리고, 검색은 로컬 SearXNG 를 쓴다.
+LLM 은 외부 클라우드 API 없이 이 PC 에서 **Qwen3.6-35B-A3B (Q4_K_M GGUF)** 를 돌린다. `--cpu-moe` 로 전문가 가중치는 시스템 RAM 에 두고 나머지는 GPU(6GB)에 적재한다 ([ADR-0017](docs/adr/0017-model-qwen3-6-35b-a3b.md)). 컨텍스트는 128K ([ADR-0018](docs/adr/0018-context-131072.md)). 검색은 로컬 SearXNG 를 쓴다 ([ADR-0019](docs/adr/0019-searxng-web-search.md)).
 
 ```mermaid
 flowchart LR
@@ -10,14 +10,14 @@ flowchart LR
     api -- "GET /search?format=json :8888" --> searx["SearXNG (Docker Desktop)"]
 ```
 
-FastAPI·cli 는 WSL, llama-server 와 SearXNG 는 Windows 에서 연다 ([ADR-0015](docs/adr/0015-llama-server-on-windows.md)). WSL 은 mirrored 네트워킹이라 `localhost` 로 서로 닿는다 ([ADR-0020](docs/adr/0020-wsl-windows-mirrored-networking.md)). WSL 에서 llama-server 를 여는 방식도 남겨 두었다 (아래 "WSL 에서 실행").
+FastAPI·cli 는 WSL, llama-server 와 SearXNG 는 Windows 에서 연다 ([ADR-0015](docs/adr/0015-llama-server-on-windows.md)). WSL 은 mirrored 네트워킹이라 `localhost` 로 서로 닿는다 ([ADR-0022](docs/adr/0022-wsl-windows-mirrored-networking.md)). WSL 에서 llama-server 를 여는 방식도 남겨 두었다 (아래 "WSL 에서 실행").
 
 ## 빠른 실행 (llama-server·SearXNG: Windows, FastAPI·cli: WSL)
 
 사전 조건
 - Windows: `bin\cuda12.4\` 에 Windows 용 llama.cpp b11377 (CUDA 12.4 빌드), `models\` 의 모델 파일. 둘 다 git 에 없다. 설치 내용은 [docs/worklog.md](docs/worklog.md).
 - Windows: Docker Desktop (SearXNG 용).
-- WSL: `%UserProfile%\.wslconfig` 에 `[wsl2]` / `networkingMode=mirrored` ([ADR-0020](docs/adr/0020-wsl-windows-mirrored-networking.md)). 바꿨다면 PowerShell 에서 `wsl --shutdown` 후 WSL 재시작.
+- WSL: `%UserProfile%\.wslconfig` 에 `[wsl2]` / `networkingMode=mirrored` ([ADR-0022](docs/adr/0022-wsl-windows-mirrored-networking.md)). 바꿨다면 PowerShell 에서 `wsl --shutdown` 후 WSL 재시작.
 
 ```powershell
 # 터미널 1 (Windows PowerShell): LLM 서버 (포트 8080)
@@ -28,7 +28,7 @@ cd C:\Tinker
 docker compose -f searxng/compose.yaml up -d      # 종료: docker compose -f searxng/compose.yaml down
 ```
 
-옵션은 `scripts/llama-server.sh` 와 같다(둘을 같이 고칠 것). 모델은 환경변수 `MODEL` 로 바꾼다 (예: `$env:MODEL = "C:\Tinker\models\Qwen3.5-4B-Q5_K_M.gguf"`). 스크립트 기본 모델은 `Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf` + `--cpu-moe` + `-c 131072` 이다. 툴 콜링용 `--jinja` 는 이 빌드에서 기본 켜져 있어 따로 안 준다.
+옵션은 `scripts/llama-server.sh` 와 같다(둘을 같이 고칠 것). 모델은 환경변수 `MODEL` 로 바꾼다 (예: `$env:MODEL = "C:\Tinker\models\Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf"`). 스크립트 기본 모델은 `Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf` + `--cpu-moe` 이다. 컨텍스트는 `-c 131072` (128K), KV 캐시는 q8_0 이다 ([ADR-0018](docs/adr/0018-context-131072.md)). 툴 콜링용 `--jinja` 는 이 빌드에서 기본 켜져 있어 따로 안 준다.
 
 SearXNG 확인 (WSL): `curl "http://localhost:8888/search?q=test&format=json"` 에 `results` 가 오면 된다. 안 켜져 있어도 챗은 동작한다 (검색만 "검색 실패"로 LLM 에 전달됨).
 
@@ -69,7 +69,7 @@ scripts/llama-server.sh
 ## 테스트
 
 ```bash
-.venv/bin/python -m pytest                  # 서버 없이 (약 2초, 190개)
+.venv/bin/python -m pytest                  # 서버 없이 (약 2초, 192개)
 .venv/bin/python -m pytest -m integration   # llama-server 와 SearXNG 를 띄운 뒤 (13개, 약 40~60초)
 ```
 
@@ -82,7 +82,7 @@ scripts/llama-server.sh
 | 문서 | 내용 |
 |---|---|
 | [architecture.md](docs/architecture.md) | 구조도(C4, Mermaid), 레이어 규칙, 요청 흐름 |
-| [adr/](docs/adr/README.md) | 설계 결정 기록 20개 (왜 이렇게 만들었나) |
+| [adr/](docs/adr/README.md) | 설계 결정 기록 22개 (왜 이렇게 만들었나) |
 | [open-items.md](docs/open-items.md) | 임시 결정과 아직 안 한 것 |
 | [testing.md](docs/testing.md) | 테스트 전략과 규칙 |
 | [worklog.md](docs/worklog.md) | 단계별 작업 기록과 현재 상태 |

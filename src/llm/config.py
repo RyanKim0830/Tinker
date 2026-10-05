@@ -14,7 +14,8 @@ class LLMSettings(BaseSettings):
     # 전체 응답을 한 번에 받으므로 생성이 끝날 때까지 기다리는 시간. 초 단위.
     timeout: float = 120.0
 
-    # Qwen3.5 모델 카드의 non-thinking 일반 작업 권장 샘플링 값
+    # Qwen3.6-35B-A3B 모델 카드의 non-thinking 권장 샘플링 값
+    # 출처: https://huggingface.co/Qwen/Qwen3.6-35B-A3B#best-practices
     temperature: float = 0.7
     top_p: float = 0.8
     top_k: int = 20

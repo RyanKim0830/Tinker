@@ -6,6 +6,7 @@ httpx.MockTransport 로 llama-server 를 흉내 낸다. 실제 서버는 필요 
 import json
 import logging
 import socket
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -42,6 +43,21 @@ async def test_returns_assistant_content():
     assert await c.chat(MESSAGES) == Message("assistant", "저는 비서입니다.")
 
 
+async def test_success_logs_request_and_response(caplog, monkeypatch):
+    times = iter([10.0, 11.25])
+    monkeypatch.setattr(client_module, "time", SimpleNamespace(perf_counter=lambda: next(times)))
+    c = make_client(lambda req: httpx.Response(200, json=ok_body("답변")))
+    with caplog.at_level(logging.INFO, logger="src.llm.client"):
+        assert (await c.chat(MESSAGES)).content == "답변"
+    records = [r for r in caplog.records if r.name == "src.llm.client"]
+    assert [r.levelno for r in records] == [logging.INFO, logging.INFO, logging.INFO]
+    assert [r.getMessage() for r in records] == [
+        "LLM 요청: messages=4",
+        "LLM 응답: status=200, 1.25s",
+        "llama-server finish_reason=None timings=None",  # 툴 콜링 단계에서 추가: 응답에 finish_reason·timings 가 있으면 여기에 찍힌다
+    ]
+
+
 async def test_request_goes_to_chat_completions_endpoint():
     seen = {}
 
@@ -71,7 +87,7 @@ async def test_request_payload_converts_messages_in_order():
 
 
 async def test_request_payload_has_default_sampling_params():
-    """확정된 결정: Qwen3.5 non-thinking 일반 작업 권장값."""
+    """확정된 결정: Qwen3.6-35B-A3B non-thinking 권장값."""
     seen = {}
 
     def handler(req: httpx.Request) -> httpx.Response:

@@ -98,7 +98,7 @@ def assert_tool_calls_are_paired(history: list[Message]) -> None:
 def test_system_prompt_is_base_plus_today_plus_search_rule():
     prompt = build_system_prompt(date(2026, 10, 5))
     assert prompt == f"{BASE_PROMPT} 오늘 날짜는 2026-10-05이다. {SEARCH_PROMPT}"
-    assert BASE_PROMPT == "너는 사용자의 개인 비서다. 한국어로 짧게 답한다."  # 기존 문구 유지
+    assert BASE_PROMPT == "너는 Ai 에이전트 Tinker 이다. 사용자와 친한 사이며, 아재개그를 좋아한다."  # 기존 문구(main 의 Tinker 페르소나) 유지
     assert SEARCH_PROMPT == "검색 결과가 있으면 그것을 근거로 답한다."
 
 

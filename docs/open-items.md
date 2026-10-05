@@ -78,20 +78,20 @@
 - Windows 에서 실행하면([ADR-0015](adr/0015-llama-server-on-windows.md)) Windows 가 직접 읽어서 해당 없음 (실측 약 6초, 파일 캐시 영향 가능).
 
 ### O-21 WSL(FastAPI) → Windows(llama-server) 연결 방식 — `해결됨`
-- **해결(2026-10-05, 사용자 확인)**: WSL **mirrored 네트워킹**(`%UserProfile%\.wslconfig` 의 `networkingMode=mirrored`)으로 해결. WSL 에서 `localhost:8080`(llama-server)·`localhost:8888`(SearXNG)가 닿는 것을 실서버로 확인했다. 코드·`.env` 변경 없음. → [ADR-0020](adr/0020-wsl-windows-mirrored-networking.md).
+- **해결(2026-10-05, 사용자 확인)**: WSL **mirrored 네트워킹**(`%UserProfile%\.wslconfig` 의 `networkingMode=mirrored`)으로 해결. WSL 에서 `localhost:8080`(llama-server)·`localhost:8888`(SearXNG)가 닿는 것을 실서버로 확인했다. 코드·`.env` 변경 없음. → [ADR-0022](adr/0022-wsl-windows-mirrored-networking.md).
 - 2026-10-04 에 정리했던 선택지(mirrored / NAT+호스트 IP / WSL 복귀)와 NAT 모드의 실측 결과는 [ADR-0015](adr/0015-llama-server-on-windows.md) 에 남아 있다.
 
-### O-22 로깅 방식 — `임시결정`
-- **무엇을**: 지시서는 "기존 로깅 방식을 따른다"고 했지만 기존 코드에는 로깅이 없었다. 그래서 표준 `logging` 을 쓴다: 각 모듈 `logger = logging.getLogger(__name__)`, 출력 수준·형식은 `main.py` 의 lifespan 에서 `logging.basicConfig` 로 한 번만 정한다. 수준은 `APP_LOG_LEVEL`(기본 INFO), 출력은 콘솔(stderr).
-- **왜**: 지시서의 "표준 logging" 규칙. uvicorn 은 앱 로거를 설정하지 않아서 직접 설정하지 않으면 INFO 가 안 보인다.
-- **다른 선택지**: 파일 로그/회전(`logging.handlers`), JSON 구조화 로그, `uvicorn --log-config`. 지금은 콘솔이면 충분하다고 봤다.
-- **다시 볼 때**: 로그를 나중에 검색/보관해야 할 때(파일·구조화). 라운드별 content 원문을 INFO 로 남기므로 대화 내용이 로그에 들어간다 — 개인용 PC 전제.
+### O-22 로깅 방식 — `임시결정` (main 의 ADR-0016 과 합침)
+- **경위**: 지시서는 "기존 로깅 방식을 따른다"고 했지만 내가 작업할 때 이 브랜치에는 로깅이 없었다. 그래서 표준 `logging` 을 직접 넣었는데, 같은 시기에 main 쪽(PR #1)에서 같은 방향의 로깅을 먼저 넣었다([ADR-0016](adr/0016-logging.md)). 두 브랜치를 합치며(2026-10-05) **main 의 방식을 기준으로 삼았다**: 각 모듈 `logging.getLogger(__name__)`, `main.py` lifespan 의 `basicConfig`(형식 `%(asctime)s %(levelname)-5s [%(name)s] %(message)s`), `APP_LOG_LEVEL`(기본 INFO), router 의 503/502 에서 traceback 기록, client 의 요청·응답 소요 시간 로그.
+- **이 작업이 더한 것**: 라운드별 content·tool_calls 원문(`chat/service.py`), 툴 호출 인자·검색 실패(`chat/tools.py`), 생성된 검색어와 결과 개수(`search/service.py`), 응답 없는 엔진 목록(`search/client.py`), llama-server `finish_reason`·`timings`(`llm/client.py` 의 세 번째 INFO 레코드; main 의 로그 테스트 기대값을 이에 맞게 갱신).
+- **다른 선택지**: 파일 로그/회전, JSON 구조화 로그.
+- **다시 볼 때**: 로그를 나중에 검색/보관해야 할 때. 라운드별 content 원문을 INFO 로 남기므로 대화 내용이 로그에 들어간다 — 개인용 PC 전제. (ADR-0016 은 DEBUG 에 전체 payload 가 기록된다고 이미 적고 있다.)
 
 ### O-23 루프 상한 해석: `max_tool_rounds` 는 LLM 총 호출 횟수 — `임시결정`
 - **무엇을**: 지시서의 "LLM 왕복 2회, 상한에 도달하면 마지막 호출은 tools 없이"를 **총 2번 호출하고 2번째는 tools 없이**로 구현했다. 기본값에서 검색은 최대 한 번이고, 잘못된 툴 호출은 다시 시도할 기회 없이 다음 왕복(tools 없음)에서 답하게 된다.
 - **왜**: "마지막 호출"이 상한에 도달한 그 호출이라는 가장 문자 그대로의 해석이고, 잘못된 호출도 왕복에 포함된다는 규칙과 맞는다.
 - **다른 선택지**: "툴을 쓸 수 있는 왕복 2회 + 마지막 답변 1회"(총 3번). 이 경우 검색 2번 또는 재시도가 가능하다. 설정 `CHAT_MAX_TOOL_ROUNDS=3` 으로 같은 효과의 일부를 낼 수 있다.
-- **다시 볼 때**: 한 번 검색으로 부족한 질문이 많거나, 잘못된 호출 뒤에 답이 나빠질 때. 해석이 의도와 다르면 알려 달라. ([ADR-0018](adr/0018-react-loop-rules.md))
+- **다시 볼 때**: 한 번 검색으로 부족한 질문이 많거나, 잘못된 호출 뒤에 답이 나빠질 때. 해석이 의도와 다르면 알려 달라. ([ADR-0020](adr/0020-react-loop-rules.md))
 
 ### O-24 `arguments` 검증 범위 — `임시결정`
 - **무엇을**: "잘못된 툴 호출"에 지시서의 3종(JSON 아님 / `query` 없음 / 미등록 툴) 외에, JSON 이지만 **객체가 아닌 경우**(배열·문자열·null·숫자)와 **`query` 가 문자열이 아닌 경우**도 같은 방식(오류 문자열을 tool 결과로)으로 처리한다. **빈 문자열 `query` 는 판단하지 않고** 그대로 검색에 넘긴다([ADR-0013](adr/0013-no-judgment-in-code.md)).
@@ -111,9 +111,9 @@
 - **다른 선택지**: 0개도 chat 에서 만들기, 빈 답을 이력에서 제외.
 - **다시 볼 때**: 빈 답이 후속 대화를 망칠 때.
 
-### O-27 샘플링 값이 아직 Qwen3.5 기준 — `확인대기`
-- `llm/config.py` 의 temperature 등은 Qwen3.5 non-thinking 권장값([ADR-0003](adr/0003-sampling-params-in-client.md)) 그대로다. 모델을 Qwen3.6-35B-A3B 로 바꿨지만([ADR-0016](adr/0016-model-qwen3-6-35b-a3b-128k.md)) **3.6 의 권장값은 확인하지 못했다**. 툴 콜링에서도 같은 값을 쓴다.
-- **다시 볼 때**: 툴 호출 판단이나 답변이 불안정할 때. 모델 카드를 확인하고 사용자가 값을 정한다.
+### O-27 샘플링 값이 Qwen3.6 기준인지 — `해결됨`
+- 처음엔 `llm/config.py` 의 샘플링 값이 Qwen3.5 모델 카드 값이라 Qwen3.6 에 맞는지 확인하지 못했다고 적었다. 그 뒤 main 에 먼저 들어간 작업([ADR-0017](adr/0017-model-qwen3-6-35b-a3b.md))에서 **Qwen 공식 모델 카드의 non-thinking 권장값을 확인**했다: `temperature=0.7`, `top_p=0.8`, `top_k=20`, `presence_penalty=1.5` 로 기존 값과 같다(2026-10-05 확인, 출처 주석 반영). 툴 콜링에서도 같은 값을 쓴다.
+- **다시 볼 때**: 툴 호출 판단이 불안정하면 툴 콜링용 권장값이 따로 있는지 확인.
 
 ### O-28 SearXNG 설정 임시값과 엔진 상태 — `임시결정` · 관찰
 - **무엇을**: `searxng/` 위치(루트), `SEARXNG_SECRET` 고정 문자열(compose 에 직접), 이미지 `latest`.
@@ -145,6 +145,7 @@
 필요해 보여도 지시서에 따라 구현하지 않았다. 구현 중 "필요해 보인" 지점을 같이 적는다.
 
 ### O-06 컨텍스트 한도 처리
+- 2026-10-05: 컨텍스트를 `131072` 로 늘림 ([ADR-0018](adr/0018-context-131072.md)). 한도 처리 자체는 여전히 없음.
 - 이력은 계속 쌓이고 컨텍스트(`-c`, 2단계에서 8192→**131072**)를 넘으면 llama-server 가 오류를 내거나 앞부분을 잘라낼 수 있다(버전에 따라 다름). 지금은 **서버가 주는 HTTP 오류가 `LLMResponseError`→502 로 올라올 뿐**이다.
 - **2단계에서 더 가까워졌다**: 이제 이력에 검색 원문(tool 결과)까지 턴 전체를 저장한다. 검색 한 번이 이력에 약 700~800 토큰을 더한다(실측: 검색 후 프롬프트 762 토큰). 128k 로 늘려 당장은 여유가 있지만, 한도 처리가 없으니 길게 쓰면 결국 필요하다. 어떤 기준으로 자를지(예: tool 결과만 먼저 삭제)는 판단이므로 사람이 정한다.
 - 나중에 볼 방식: 오래된 턴 삭제, 요약, 토큰 수 계산. 어떤 기준으로 자를지는 판단이므로 사람이 정한다.
@@ -156,7 +157,7 @@
 - 응답 전체를 기다리므로 긴 답변은 체감이 느리다. 나중에 `/chat` 을 SSE 로 바꿀 예정(ADR-0007). 바뀌는 곳: `LLMClient.chat`(스트림 반환), service, router, cli.
 
 ### O-09 영속화(DB) · 인증 · 미들웨어 · 헥사고날/Protocol
-- 모두 범위 밖. (툴 콜링은 2단계에서 구현했다: [ADR-0018](adr/0018-react-loop-rules.md).) 서버가 `127.0.0.1` 에만 바인딩(기본)되어 있어 인증이 없어도 같은 PC 밖에서는 접근되지 않는다. 호스트를 `0.0.0.0` 으로 바꾸면 **인증 없이 외부에 열리니** 그 전에 인증을 검토해야 한다. llama-server·SearXNG 에도 같다: 포트를 `0.0.0.0` 으로 열면 인증 없는 서버가 열린다(O-21 은 mirrored 로 해결해서 열지 않았다).
+- 모두 범위 밖. (툴 콜링은 2단계에서 구현했다: [ADR-0020](adr/0020-react-loop-rules.md).) 서버가 `127.0.0.1` 에만 바인딩(기본)되어 있어 인증이 없어도 같은 PC 밖에서는 접근되지 않는다. 호스트를 `0.0.0.0` 으로 바꾸면 **인증 없이 외부에 열리니** 그 전에 인증을 검토해야 한다. llama-server·SearXNG 에도 같다: 포트를 `0.0.0.0` 으로 열면 인증 없는 서버가 열린다(O-21 은 mirrored 로 해결해서 열지 않았다).
 
 ### 2단계에서 하지 않기로 한 것 (구현하지 않음, 기록만) — `제외`
 

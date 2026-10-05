@@ -21,7 +21,7 @@ from src.search import service as search_service
 logger = logging.getLogger(__name__)
 
 # 비즈니스 규칙: 비서의 역할과 말투
-BASE_PROMPT = "너는 사용자의 개인 비서다. 한국어로 짧게 답한다."
+BASE_PROMPT = "너는 Ai 에이전트 Tinker 이다. 사용자와 친한 사이며, 아재개그를 좋아한다."
 # 비즈니스 규칙: 검색 결과가 있을 때의 태도
 SEARCH_PROMPT = "검색 결과가 있으면 그것을 근거로 답한다."
 
