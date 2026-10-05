@@ -13,6 +13,7 @@ from fastapi import Depends
 
 from src.chat import tools
 from src.chat.config import ChatSettings
+from src.chat.exceptions import ChatFailedError, ChatUnavailableError
 from src.llm import client as llm_client
 from src.llm import exceptions as llm_exceptions
 from src.message import Message
@@ -35,14 +36,6 @@ def build_system_prompt(today: date) -> str:
 # 한 턴 전체(user, assistant(tool_calls), tool 결과, 최종 assistant)를 저장한다.
 # 시스템 프롬프트는 저장하지 않고 호출 때마다 맨 앞에 붙인다.
 _history: list[Message] = []
-
-
-class ChatUnavailableError(Exception):
-    """LLM 서버에 연결할 수 없어 답을 못 만든다. (프레젠테이션 레이어가 '서비스 불가'로 포장)"""
-
-
-class ChatFailedError(Exception):
-    """LLM 서버가 이상한 응답을 줘서 답을 못 만든다. (프레젠테이션 레이어가 '상위 서버 오류'로 포장)"""
 
 
 class ChatService:

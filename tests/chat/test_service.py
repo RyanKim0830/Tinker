@@ -11,12 +11,11 @@ from pydantic import ValidationError
 
 from src.chat import service, tools
 from src.chat.config import ChatSettings
+from src.chat.exceptions import ChatFailedError, ChatUnavailableError
 from src.chat.service import (
     BASE_PROMPT,
     SEARCH_PROMPT,
-    ChatFailedError,
     ChatService,
-    ChatUnavailableError,
     build_system_prompt,
     get_chat_service,
 )

@@ -9,7 +9,8 @@ import httpx
 import pytest
 
 from src.chat.router import router  # noqa: F401  (임포트만으로 라우트 등록 확인)
-from src.chat.service import ChatFailedError, ChatUnavailableError, get_chat_service
+from src.chat.exceptions import ChatFailedError, ChatUnavailableError
+from src.chat.service import get_chat_service
 from src.main import app
 
 

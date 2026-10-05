@@ -66,6 +66,7 @@ flowchart TB
     subgraph biz["비즈니스 레이어"]
         service["chat/service.py<br/>이력 · 시스템 프롬프트 · <b>툴 콜링 루프</b>"]
         tools["chat/tools.py · chat/config.py<br/>툴 스키마 · 이름→실행 · 루프 상한"]
+        chatexc["chat/exceptions.py<br/>ChatUnavailableError · ChatFailedError"]
         ssvc["search/service.py<br/>상위 N개를 '[번호] 제목 (URL)\n내용' 으로"]
     end
     subgraph infra["인프라 레이어"]
@@ -85,6 +86,7 @@ flowchart TB
     ssvc --> sclient
     client --> cfg
     sclient --> cfg
+    service -.-> chatexc
     client -.-> exc
     sclient -.-> exc
     client -- "httpx" --> ext1
